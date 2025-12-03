@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   FaTelegram,
   FaVk,
@@ -7,11 +8,15 @@ import {
   FaPlus,
   FaBars,
   FaCog,
+  FaEllipsisV,
 } from 'react-icons/fa';
+import { SOURCES_CHANGED_EVENT } from '../services/newsService';
 
 interface SidebarItem {
   title: string;
   icon: React.ComponentType<{ className?: string }>;
+  type?: string;
+  id?: number;
 }
 
 interface SidebarGroup {
@@ -19,31 +24,130 @@ interface SidebarGroup {
   items: SidebarItem[];
 }
 
-const sidebarData: SidebarGroup[] = [
-  {
-    name: 'Источники',
-    items: [
-      { title: 'Telegram', icon: FaTelegram },
-      { title: 'ВКонтакте', icon: FaVk },
-      { title: 'RSS каналы', icon: FaRss },
-    ],
-  },
-  {
-    name: 'Ваши коллекции',
-    items: [
-      { title: 'Коллекция 1', icon: FaFolder },
-      { title: 'Коллекция 2', icon: FaFolder },
-      { title: 'Коллекция 3', icon: FaFolder },
-    ],
-  },
-];
-
 interface SidebarProps {
-  collapsed: boolean;
-  onToggle: () => void;
+  collapsed?: boolean;
+  onToggle?: () => void;
+  onSourceTypeChange?: (type: string | undefined) => void;
+  onLogoClick?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
+interface Source {
+  id: number;
+  name: string;
+  type: string;
+  configuration: string;
+  isActive: boolean;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ 
+  collapsed = false, 
+  onToggle,
+  onSourceTypeChange,
+  onLogoClick 
+}) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [rssSources, setRssSources] = useState<Source[]>([]);
+  const [kebabMenuOpen, setKebabMenuOpen] = useState<number | null>(null);
+  const [rssMenuOpen, setRssMenuOpen] = useState(false);
+
+  const loadRssSources = useCallback(async () => {
+    try {
+      const response = await fetch('http://localhost:5043/api/sources');
+      if (response.ok) {
+        const sources: Source[] = await response.json();
+        setRssSources(sources.filter(s => s.type.toLowerCase() === 'rss'));
+      }
+    } catch (error) {
+      console.error('Error loading RSS sources:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadRssSources();
+  }, [loadRssSources, location.pathname]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.addEventListener(SOURCES_CHANGED_EVENT, loadRssSources);
+    return () => window.removeEventListener(SOURCES_CHANGED_EVENT, loadRssSources);
+  }, [loadRssSources]);
+
+  const handleItemClick = (item: SidebarItem) => {
+    if (item.type === 'rss') {
+      onSourceTypeChange?.('rss');
+      navigate('/');
+    } else if (item.title === 'Telegram' || item.title === 'ВКонтакте') {
+      // Для будущих типов источников
+      onSourceTypeChange?.(undefined);
+      navigate('/');
+    } else {
+      onSourceTypeChange?.(undefined);
+      navigate('/');
+    }
+  };
+
+  const handleRssKebabClick = (e: React.MouseEvent | React.KeyboardEvent) => {
+    e.stopPropagation();
+    setRssMenuOpen(!rssMenuOpen);
+  };
+
+  const handleSourceKebabClick = (e: React.MouseEvent | React.KeyboardEvent, sourceId: number) => {
+    e.stopPropagation();
+    setKebabMenuOpen(kebabMenuOpen === sourceId ? null : sourceId);
+  };
+
+  const handleModalBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      setRssMenuOpen(false);
+      setKebabMenuOpen(null);
+    }
+  };
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setRssMenuOpen(false);
+        setKebabMenuOpen(null);
+      }
+    };
+
+    if (rssMenuOpen) {
+      document.addEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [rssMenuOpen]);
+
+  const handleEditSource = (sourceId: number) => {
+    navigate(`/edit-source/${sourceId}`);
+    setKebabMenuOpen(null);
+  };
+
+  const sidebarData: SidebarGroup[] = [
+    {
+      name: 'Источники',
+      items: [
+        { title: 'Telegram', icon: FaTelegram, type: 'telegram' },
+        { title: 'ВКонтакте', icon: FaVk, type: 'vk' },
+        { title: 'RSS каналы', icon: FaRss, type: 'rss' },
+      ],
+    },
+    {
+      name: 'Ваши коллекции',
+      items: [
+        { title: 'Коллекция 1', icon: FaFolder },
+        { title: 'Коллекция 2', icon: FaFolder },
+        { title: 'Коллекция 3', icon: FaFolder },
+      ],
+    },
+  ];
+
   return (
     <div
       className={`h-full bg-white text-slate-900 flex flex-col border-r border-slate-200 transition-[width] duration-300 ${
@@ -51,15 +155,22 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
       } shadow-sm`}
     >
       <div className="h-20 px-4 flex items-center gap-2 border-b border-slate-200">
-        <button
-          onClick={onToggle}
-          className="p-2 rounded-lg hover:bg-slate-100 focus:outline-none transition-colors text-slate-600"
-          aria-label="Toggle sidebar"
-        >
-          <FaBars />
-        </button>
+        {onToggle && (
+          <button
+            onClick={onToggle}
+            className="p-2 rounded-lg hover:bg-slate-100 focus:outline-none transition-colors text-slate-600"
+            aria-label="Toggle sidebar"
+          >
+            <FaBars />
+          </button>
+        )}
         {!collapsed && (
-          <span className="text-xl font-black tracking-tight">Svodka</span>
+          <button
+            onClick={onLogoClick}
+            className="text-xl font-black tracking-tight hover:text-indigo-600 transition-colors cursor-pointer"
+          >
+            Svodka
+          </button>
         )}
       </div>
 
@@ -75,21 +186,40 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
             </p>
             <ul className="space-y-1">
               {group.items.map((item) => (
-                <li key={item.title}>
-                  <a
-                    href="#"
-                    className="flex items-center p-2 text-sm font-medium text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+                <li key={item.title} className="relative group">
+                  <button
+                    onClick={() => handleItemClick(item)}
+                    className="flex items-center justify-between w-full p-2 text-sm font-medium text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
                   >
-                    <item.icon className="text-lg text-slate-500" />
-                    <span
-                      className={`transition-all duration-200 ${
-                        collapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'
-                      }`}
-                      style={{ marginLeft: collapsed ? 0 : '0.75rem' }}
-                    >
-                      {item.title}
-                    </span>
-                  </a>
+                    <div className="flex items-center">
+                      <item.icon className="text-lg text-slate-500" />
+                      <span
+                        className={`transition-all duration-200 ${
+                          collapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'
+                        }`}
+                        style={{ marginLeft: collapsed ? 0 : '0.75rem' }}
+                      >
+                        {item.title}
+                      </span>
+                    </div>
+                    {!collapsed && item.type === 'rss' && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={handleRssKebabClick}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleRssKebabClick(e);
+                          }
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-200 rounded transition-opacity cursor-pointer"
+                      >
+                        <FaEllipsisV className="text-xs text-slate-500" />
+                      </span>
+                    )}
+                  </button>
+                  
                 </li>
               ))}
             </ul>
@@ -104,9 +234,9 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
       </div>
 
       <div className="p-3 border-t border-slate-200">
-        <a
-          href="#"
-          className="flex items-center p-2 text-sm font-medium text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+        <button
+          onClick={() => navigate('/sources')}
+          className="flex items-center w-full p-2 text-sm font-medium text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
         >
           <FaCog className="text-lg text-slate-500" />
           <span
@@ -116,8 +246,97 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
           >
             Настройки
           </span>
-        </a>
+        </button>
       </div>
+
+      {/* Модальное окно RSS каналов */}
+      {rssMenuOpen && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-[9999] pointer-events-none"
+          onClick={handleModalBackdropClick}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[80vh] overflow-hidden flex flex-col pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-900">RSS каналы</h3>
+              <button
+                onClick={() => {
+                  setRssMenuOpen(false);
+                  setKebabMenuOpen(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+                aria-label="Закрыть"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {rssSources.length === 0 ? (
+                <div className="px-6 py-8 text-center text-slate-500">
+                  <p className="text-sm">Нет добавленных RSS каналов</p>
+                  <button
+                    onClick={() => {
+                      setRssMenuOpen(false);
+                      navigate('/add-source');
+                    }}
+                    className="mt-4 px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                  >
+                    Добавить канал
+                  </button>
+                </div>
+              ) : (
+                <div className="py-2">
+                  {rssSources.map((source) => (
+                    <div key={source.id} className="relative group/item">
+                      <button
+                        onClick={() => {
+                          onSourceTypeChange?.('rss');
+                          navigate('/');
+                          setRssMenuOpen(false);
+                        }}
+                        className="w-full text-left px-6 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center justify-between transition-colors"
+                      >
+                        <span className="font-medium">{source.name}</span>
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => handleSourceKebabClick(e, source.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleSourceKebabClick(e, source.id);
+                            }
+                          }}
+                          className="p-2 hover:bg-slate-200 rounded-full transition-colors cursor-pointer"
+                        >
+                          <FaEllipsisV className="text-xs text-slate-500" />
+                        </span>
+                      </button>
+                      {kebabMenuOpen === source.id && (
+                        <div className="absolute right-0 top-full mt-1 mr-4 bg-white rounded-lg shadow-xl border border-slate-200 z-50 min-w-[140px]">
+                          <button
+                            onClick={() => {
+                              handleEditSource(source.id);
+                              setRssMenuOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                          >
+                            Редактировать
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

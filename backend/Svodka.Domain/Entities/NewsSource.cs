@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Text.Json.Serialization;
 
 namespace Svodka.Domain.Entities
 {
@@ -20,6 +21,7 @@ namespace Svodka.Domain.Entities
         public DateTime? LastErrorAtUtc { get; set; }
         public string? LastError { get; set; }
 
+        [JsonIgnore]
         public virtual ICollection<NewsItem> NewsItems { get; set; } = new List<NewsItem>();
 
     }

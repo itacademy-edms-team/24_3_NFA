@@ -14,6 +14,10 @@ namespace Svodka.Domain.Interfaces
         Task<IEnumerable<NewsItem>> GetLatestNewsAsync(
             int limit,
             string? searchQuery = null,
-            DateTime? fromDateUtc = null);
+            DateTime? fromDateUtc = null,
+            List<int>? sourceIds = null,
+            List<string>? categories = null,
+            int offset = 0,
+            string? sourceType = null);
     }
 }

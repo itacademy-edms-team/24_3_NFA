@@ -31,13 +31,22 @@ namespace Svodka.Infrastructure.Services
             return await _context.NewsSources.ToListAsync();
         }
 
+        public async Task<bool> DeleteNewsSourceAsync(int id)
+        {
+            var source = await _context.NewsSources.FindAsync(id);
+            if (source == null) return false;
+
+            _context.NewsSources.Remove(source);
+            return true;
+        }
+
         public async Task UpdateLastPolledAtAsync(int sourceId, DateTime utcNow)
         {
             var source = await _context.NewsSources.FindAsync(sourceId);
             if (source != null)
             {
                 source.LastPolledAtUtc = utcNow;
-                
+
             }
         }
 

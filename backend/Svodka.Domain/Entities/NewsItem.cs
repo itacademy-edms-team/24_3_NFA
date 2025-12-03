@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Svodka.Domain.Entities
 {
 
@@ -25,6 +27,7 @@ namespace Svodka.Domain.Entities
 
         public DateTime IndexedAtUtc { get; set; }
 
+        [JsonIgnore]
         public virtual NewsSource? NewsSource { get; set; }
     }
 }

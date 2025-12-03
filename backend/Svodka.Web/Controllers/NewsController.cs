@@ -11,16 +11,20 @@ namespace Svodka.Web.Controllers
     {
         private readonly INewsItemRepository _newsItemRepository;
 
-        public NewsController(INewsItemRepository newsItemRepository) 
+        public NewsController(INewsItemRepository newsItemRepository)
         {
             _newsItemRepository = newsItemRepository;
         }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<NewsItem>>> GetLatestNews(
+            int offset = 0,
             int limit = 10,
             string? q = null,
-            string? period = null)
+            string? period = null,
+            [FromQuery] int[]? sources = null,
+            [FromQuery] string[]? categories = null,
+            string? sourceType = null)
         {
             DateTime? fromDateUtc = null;
 
@@ -36,7 +40,11 @@ namespace Svodka.Web.Controllers
                 };
             }
 
-            var news = await _newsItemRepository.GetLatestNewsAsync(limit, q, fromDateUtc);
+            // Преобразуем массивы в списки для использования в репозитории
+            var sourcesList = sources?.ToList();
+            var categoriesList = categories?.ToList();
+
+            var news = await _newsItemRepository.GetLatestNewsAsync(limit, q, fromDateUtc, sourcesList, categoriesList, offset, sourceType);
             return Ok(news);
         }
     }

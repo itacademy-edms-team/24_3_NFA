@@ -1,77 +1,104 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Svodka.Domain.Interfaces;
 using Svodka.Infrastructure.Services;
 using Svodka.Infrastructure.Data;
 using Svodka.Infrastructure.Providers;
-using Svodka.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-                           ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                       ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
 builder.Services.AddDbContext<NewsAggregatorDbContext>(options =>
     options.UseSqlServer(connectionString));
 
+// HttpClient для RSS
 builder.Services.AddHttpClient<IRssService, RssService>(client =>
 {
-    client.Timeout = TimeSpan.FromSeconds(30); 
+    client.Timeout = TimeSpan.FromSeconds(30);
 });
 
-
+// Репозитории и сервисы
 builder.Services.AddScoped<INewsItemRepository, NewsItemRepository>();
 builder.Services.AddScoped<INewsSourceRepository, NewsSourceRepository>();
 builder.Services.AddTransient<RssNewsProvider>();
 builder.Services.AddTransient<INewsProviderFactory, NewsProviderFactory>();
-
+builder.Services.AddSingleton<INewsAggregationJob, NewsAggregationJob>();
 builder.Services.AddHostedService<NewsAggregationBackgroundService>();
 
 builder.Services.Configure<NewsAggregationOptions>(
     builder.Configuration.GetSection(NewsAggregationOptions.SectionName));
 
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins(
+                "http://localhost:5173",
+                "http://localhost:3000",
+                "http://localhost:3001",
+                "http://localhost:8080",
+                "http://localhost:8000")
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
+
+    options.AddPolicy("DevelopmentCORS", policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:5173",
+                "https://localhost:5173",
+                "http://localhost:3000",
+                "http://localhost:3001",
+                "http://localhost:8080",
+                "http://localhost:8000")
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
 
-builder.Services.AddControllers();
+// Настройка JSON для контроллеров
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+    });
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+
+
+// CORS до остального middleware
+if (app.Environment.IsDevelopment())
 {
-    var context = scope.ServiceProvider.GetRequiredService<NewsAggregatorDbContext>();
-    try
-    {
-        context.Database.Migrate();
-        Console.WriteLine("�������� ��������� �������.");
-    }
-    catch (Exception ex)
-    {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "������ ��� ���������� ��������.");
-    }
+    app.UseCors("DevelopmentCORS");
+}
+else
+{
+    app.UseCors("AllowReactApp");
 }
 
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
     app.UseHsts();
+    app.UseHttpsRedirection();
 }
 
-
-
-app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
 
-//app.UseAuthorization();
+// app.UseAuthorization();
 
 app.MapControllers();
 

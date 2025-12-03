@@ -6,13 +6,18 @@ using System.Threading.Tasks;
 
 namespace Svodka.Domain.Models
 {
-    /// <summary>
-    /// Конфигурация RSS-источника
-    /// </summary>
-    public class RssSourceConfiguration
-    {
-        public string Url { get; set; } = string.Empty;
-        public int Limit { get; set; } = 10;
-        public string? Category {  get; set; }
-    }
+ using System.Text.Json.Serialization;
+
+public class RssSourceConfiguration
+{
+    [JsonPropertyName("url")]
+    public string Url { get; set; } = string.Empty;
+
+    [JsonPropertyName("limit")]
+    public int Limit { get; set; } = 10;
+
+    [JsonPropertyName("category")]
+    public string? Category { get; set; }
+}
+
 }

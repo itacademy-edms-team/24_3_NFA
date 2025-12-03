@@ -5,8 +5,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.ServiceModel.Syndication;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
+using System.Xml.Linq;
+using System.Net;
 
 namespace Svodka.Infrastructure.Services
 {
@@ -47,11 +50,76 @@ namespace Svodka.Infrastructure.Services
 
                     var publishedDate = item.PublishDate.UtcDateTime;
 
+                    // Извлекаем полный текст из Content или Summary
+                    string description = string.Empty;
+                    if (item.Content != null)
+                    {
+                        if (item.Content is TextSyndicationContent textContent)
+                        {
+                            description = textContent.Text;
+                        }
+                        else if (item.Content is XmlSyndicationContent xmlContent)
+                        {
+                            using var reader = xmlContent.GetReaderAtContent();
+                            var element = XElement.Load(reader);
+                            description = element.Value; // только текстовое содержимое без тегов
+                        }
+
+                    }
+
+                    if (string.IsNullOrWhiteSpace(description) && item.Summary != null)
+                    {
+                        description = item.Summary.Text ?? string.Empty;
+                    }
+
+                    // Извлекаем картинку из различных мест RSS
                     string? imageUrl = null;
+                    
+                    // Проверяем медиа-контент (Media RSS)
+                    if (item.ElementExtensions != null)
+                    {
+                        foreach (var ext in item.ElementExtensions)
+                        {
+                            if (ext.OuterName == "thumbnail" || ext.OuterName == "image" || ext.OuterName == "enclosure")
+                            {
+                                var urlAttr = ext.GetObject<XElement>()?.Attribute("url")?.Value;
+                                if (!string.IsNullOrEmpty(urlAttr))
+                                {
+                                    imageUrl = urlAttr;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    // Проверяем в описании на наличие img тегов
+                    if (string.IsNullOrEmpty(imageUrl) && !string.IsNullOrEmpty(description))
+                    {
+                        var imgMatch = Regex.Match(
+                            description, 
+                            @"<img[^>]+src=[""']([^""']+)[""']", 
+                            RegexOptions.IgnoreCase);
+                        if (imgMatch.Success)
+                        {
+                            imageUrl = imgMatch.Groups[1].Value;
+                        }
+                    }
+
+                    // Удаляем HTML теги из описания для чистого текста
+                    if (!string.IsNullOrEmpty(description))
+                    {
+                        description = Regex.Replace(
+                            description, 
+                            @"<[^>]+>", 
+                            string.Empty);
+                        description = WebUtility.HtmlDecode(description);
+                        description = description.Trim();
+                    }
+
                     var newsItem = new NewsItem
                     {
                         Title = item.Title?.Text ?? string.Empty, 
-                        Description = item.Summary?.Text ?? string.Empty, 
+                        Description = description, 
                         Link = item.Links?.FirstOrDefault()?.Uri?.ToString() ?? string.Empty,
                         PublishedAtUtc = publishedDate,
                         SourceItemId = sourceItemId ?? Guid.NewGuid().ToString(),

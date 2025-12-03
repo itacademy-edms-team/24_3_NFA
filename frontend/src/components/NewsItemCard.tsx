@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { type NewsItem } from '../types/NewsItem';
 
 interface NewsItemCardProps {
@@ -6,36 +6,76 @@ interface NewsItemCardProps {
 }
 
 const NewsItemCard: React.FC<NewsItemCardProps> = ({ newsItem }) => {
-  const formattedDate = new Date(newsItem.publishedAtUtc).toLocaleString();
+  const [showFullText, setShowFullText] = useState(false);
+  const formattedDate = new Date(newsItem.publishedAtUtc).toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  const description = newsItem.description || '';
+  const shouldTruncate = description.length > 300;
+  const displayText = showFullText || !shouldTruncate 
+    ? description 
+    : description.substring(0, 300) + '...';
 
   return (
-    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow duration-200">
-      <h3 className="text-base font-semibold text-slate-900 mb-1">
+    <article className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition-shadow duration-200">
+      {newsItem.imageUrl && (
+        <div className="mb-4 rounded-xl overflow-hidden">
+          <img 
+            src={newsItem.imageUrl} 
+            alt={newsItem.title}
+            className="w-full h-64 object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        </div>
+      )}
+      
+      <h2 className="text-xl font-bold text-slate-900 mb-3 leading-tight">
+        {newsItem.title}
+      </h2>
+      
+      {description && (
+        <div className="mb-4">
+          <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">
+            {displayText}
+          </p>
+          {shouldTruncate && (
+            <button
+              onClick={() => setShowFullText(!showFullText)}
+              className="mt-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+            >
+              {showFullText ? 'Свернуть' : 'Читать полностью'}
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-slate-100">
+        {newsItem.category && (
+          <span className="inline-block px-3 py-1 text-xs font-medium bg-indigo-100 text-indigo-700 rounded-full">
+            {newsItem.category}
+          </span>
+        )}
+        {newsItem.author && (
+          <span className="text-xs text-slate-500">Автор: {newsItem.author}</span>
+        )}
+        <span className="text-xs text-slate-500">{formattedDate}</span>
         <a
           href={newsItem.link}
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:text-indigo-600"
+          className="ml-auto px-4 py-2 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
         >
-          {newsItem.title}
+          Перейти к источнику →
         </a>
-      </h3>
-      {newsItem.description && (
-        <p className="text-slate-600 text-sm mb-3 line-clamp-3">{newsItem.description}</p>
-      )}
-      <div className="text-[11px] text-slate-500 flex justify-between items-center">
-        <span>Источник ID: {newsItem.sourceId}</span>
-        <span>Опубликовано: {formattedDate}</span>
       </div>
-      {newsItem.category && (
-        <span className="inline-block mt-2 px-2 py-1 text-[11px] bg-slate-100 text-slate-700 rounded-full">
-          {newsItem.category}
-        </span>
-      )}
-      {newsItem.author && (
-        <p className="text-[11px] text-slate-500 mt-1">Автор: {newsItem.author}</p>
-      )}
-    </div>
+    </article>
   );
 };
 

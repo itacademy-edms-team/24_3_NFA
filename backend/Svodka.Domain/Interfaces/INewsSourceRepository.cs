@@ -18,6 +18,11 @@ namespace Svodka.Domain.Interfaces
         Task AddNewsSourceAsync(NewsSource source);
 
         /// <summary>
+        /// Удаляет источник новостей по его идентификатору.
+        /// </summary>
+        Task<bool> DeleteNewsSourceAsync(int id);
+
+        /// <summary>
         /// Получает все активные источники.
         /// </summary>
         Task<IEnumerable<NewsSource>> GetActiveNewsSourcesAsync();

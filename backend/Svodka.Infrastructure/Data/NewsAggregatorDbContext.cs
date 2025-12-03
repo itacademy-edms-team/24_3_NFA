@@ -26,9 +26,9 @@ namespace Svodka.Infrastructure.Data
                       .HasDatabaseName("IX_NewsItem_PublishedAtUtc");
 
                 entity.HasOne(d => d.NewsSource)
-                      .WithMany(p => p.NewsItems) 
+                      .WithMany(p => p.NewsItems)
                       .HasForeignKey(d => d.SourceId)
-                      .OnDelete(DeleteBehavior.ClientSetNull) 
+                      .OnDelete(DeleteBehavior.Cascade)
                       .HasConstraintName("FK_NewsItem_NewsSource_SourceId");
             });
 

@@ -21,14 +21,13 @@ const AddSourceForm: React.FC = () => {
       const configuration = {
         url: url,
         limit: limit,
-        category: category || null, 
+        category: category || "",  // Используем пустую строку вместо null
       };
-
 
       const newSourceData = {
         name: name,
         type: 'rss', 
-        configuration: JSON.stringify(configuration), 
+        configuration: configuration,  // Отправляем объект, не строку
         isActive: true, 
       };
 
