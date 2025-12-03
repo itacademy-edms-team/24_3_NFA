@@ -13,11 +13,19 @@ using System.Net;
 
 namespace Svodka.Infrastructure.Services
 {
+    /// <summary>
+    /// Служба для работы с RSS-лентами
+    /// </summary>
     public class RssService: IRssService
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<RssService> _logger;
 
+        /// <summary>
+        /// Конструктор службы RSS
+        /// </summary>
+        /// <param name="httpClient">HTTP клиент для выполнения запросов</param>
+        /// <param name="logger">Логгер</param>
         public RssService(HttpClient httpClient, ILogger<RssService> logger)
         {
             _httpClient = httpClient;
@@ -25,6 +33,12 @@ namespace Svodka.Infrastructure.Services
             _logger = logger;
         }
 
+        /// <summary>
+        /// Загружает и парсит RSS-ленту по URL
+        /// </summary>
+        /// <param name="url">URL RSS-ленты</param>
+        /// <param name="limit">Максимальное количество элементов для возврата</param>
+        /// <returns>Список новостей из ленты</returns>
         public async  Task<IEnumerable<NewsItem>> FetchRssFeedAsync(string url, int limit)
         {
             try

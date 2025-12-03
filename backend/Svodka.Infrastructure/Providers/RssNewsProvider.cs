@@ -11,18 +11,30 @@ using Svodka.Infrastructure.Services;
 
 namespace Svodka.Infrastructure.Providers
 {
+    /// <summary>
+    /// Провайдер для получения новостей из RSS-ленты
+    /// </summary>
     public class RssNewsProvider : INewsProvider
     {
         private readonly IRssService _rssService;
         private readonly ILogger<RssNewsProvider> _logger;
 
-
+        /// <summary>
+        /// Конструктор провайдера RSS-новостей
+        /// </summary>
+        /// <param name="rssService">Служба для работы с RSS-лентами</param>
+        /// <param name="logger">Логгер</param>
         public RssNewsProvider(IRssService rssService, ILogger<RssNewsProvider> logger)
         {
             _rssService = rssService;
             _logger = logger;
         }
 
+        /// <summary>
+        /// Получает список новостей из RSS-ленты
+        /// </summary>
+        /// <param name="configuration">Конфигурация RSS-источника</param>
+        /// <returns>Список новостей</returns>
         public async Task<IEnumerable<NewsItem>> GetNewsAsync(object configuration)
         {
             if (configuration is not RssSourceConfiguration rssConfig)
@@ -48,7 +60,7 @@ namespace Svodka.Infrastructure.Providers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка при получении новостей из RSS: {Url}", rssConfig.Url);
-                throw; 
+                throw;
             }
         }
     }

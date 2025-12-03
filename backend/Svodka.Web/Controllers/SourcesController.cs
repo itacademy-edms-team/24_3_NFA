@@ -9,6 +9,9 @@ using System.Threading;
 
 namespace Svodka.Web.Controllers
 {
+    /// <summary>
+    /// Контроллер для управления источниками новостей
+    /// </summary>
     [Route("api/[controller]")]
     [ApiController]
     public class SourcesController : ControllerBase
@@ -17,6 +20,12 @@ namespace Svodka.Web.Controllers
         private readonly ILogger<SourcesController> _logger;
         private readonly INewsAggregationJob _newsAggregationJob;
 
+        /// <summary>
+        /// Конструктор контроллера SourcesController
+        /// </summary>
+        /// <param name="newsSourceRepository">Репозиторий источников новостей</param>
+        /// <param name="logger">Логгер</param>
+        /// <param name="newsAggregationJob">Служба агрегации новостей</param>
         public SourcesController(
             INewsSourceRepository newsSourceRepository,
             ILogger<SourcesController> logger,
@@ -27,6 +36,12 @@ namespace Svodka.Web.Controllers
             _newsAggregationJob = newsAggregationJob;
         }
 
+        /// <summary>
+        /// Создает новый источник новостей
+        /// </summary>
+        /// <param name="request">Запрос на создание источника</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Результат создания источника</returns>
         [HttpPost]
         public async Task<IActionResult> CreateSource([FromBody] CreateSourceRequest request, CancellationToken cancellationToken)
         {
@@ -126,6 +141,13 @@ namespace Svodka.Web.Controllers
                 new { id = newsSource.Id, name = newsSource.Name });
         }
 
+        /// <summary>
+        /// Обновляет существующий источник новостей
+        /// </summary>
+        /// <param name="id">Идентификатор источника</param>
+        /// <param name="request">Запрос на обновление источника</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Результат обновления источника</returns>
         [HttpPut("{id:int}")]
         public async Task<IActionResult> UpdateSource(int id, [FromBody] CreateSourceRequest request, CancellationToken cancellationToken)
         {
@@ -220,6 +242,11 @@ namespace Svodka.Web.Controllers
             return Ok(existingSource);
         }
 
+        /// <summary>
+        /// Удаляет источник новостей по идентификатору с каскадным удалением новостей
+        /// </summary>
+        /// <param name="id">Идентификатор источника</param>
+        /// <returns>Результат удаления источника</returns>
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> DeleteSource(int id)
         {
@@ -253,6 +280,11 @@ namespace Svodka.Web.Controllers
             }
         }
 
+        /// <summary>
+        /// Получает источник новостей по идентификатору
+        /// </summary>
+        /// <param name="id">Идентификатор источника</param>
+        /// <returns>Информация об источнике</returns>
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetSourceById(int id)
         {
@@ -261,6 +293,10 @@ namespace Svodka.Web.Controllers
             return Ok(source);
         }
 
+        /// <summary>
+        /// Получает все источники новостей
+        /// </summary>
+        /// <returns>Список всех источников</returns>
         [HttpGet]
         public async Task<IActionResult> GetSources()
         {
@@ -268,6 +304,10 @@ namespace Svodka.Web.Controllers
             return Ok(sources);
         }
 
+        /// <summary>
+        /// Получает опции фильтрации (источники и категории) для построения фильтра
+        /// </summary>
+        /// <returns>Опции фильтрации</returns>
         [HttpGet("filter-options")]
         public async Task<IActionResult> GetFilterOptions()
         {
@@ -293,18 +333,33 @@ namespace Svodka.Web.Controllers
         }
     }
 
+    /// <summary>
+    /// Класс запроса для создания или обновления источника новостей
+    /// </summary>
     public class CreateSourceRequest
     {
+        /// <summary>
+        /// Название источника
+        /// </summary>
         [Required]
         public string Name { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Тип источника (например, "rss")
+        /// </summary>
         [Required]
         [RegularExpression("rss", ErrorMessage = "Only 'rss' type is supported for now.")]
         public string Type { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Конфигурация источника
+        /// </summary>
         [Required]
         public RssSourceConfiguration Configuration { get; set; } = new();
 
+        /// <summary>
+        /// Флаг активности источника
+        /// </summary>
         public bool IsActive { get; set; } = true;
     }
 }

@@ -9,15 +9,27 @@ using System.Threading.Tasks;
 
 namespace Svodka.Infrastructure.Services
 {
+    /// <summary>
+    /// Фабрика для получения экземпляров INewsProvider по типу провайдера
+    /// </summary>
     public class NewsProviderFactory : INewsProviderFactory
     {
         private readonly IServiceProvider _serviceProvider;
 
+        /// <summary>
+        /// Конструктор фабрики провайдеров новостей
+        /// </summary>
+        /// <param name="serviceProvider">Поставщик сервисов</param>
         public NewsProviderFactory(IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
         }
 
+        /// <summary>
+        /// Возвращает провайдер (поставщик) новостей для указанного типа
+        /// </summary>
+        /// <param name="providerType">Тип провайдера (например, "rss")</param>
+        /// <returns>Экземпляр INewsProvider</returns>
         public INewsProvider GetProvider(string providerType)
         {
             switch (providerType)

@@ -14,12 +14,21 @@ using Svodka.Infrastructure.Data;
 
 namespace Svodka.Infrastructure.Services
 {
+    /// <summary>
+    /// Служба для агрегации новостей из источников
+    /// </summary>
     public class NewsAggregationJob : INewsAggregationJob
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<NewsAggregationJob> _logger;
         private readonly NewsAggregationOptions _options;
 
+        /// <summary>
+        /// Конструктор службы агрегации новостей
+        /// </summary>
+        /// <param name="scopeFactory">Фабрика сервисных областей</param>
+        /// <param name="logger">Логгер</param>
+        /// <param name="options">Опции агрегации</param>
         public NewsAggregationJob(
             IServiceScopeFactory scopeFactory,
             ILogger<NewsAggregationJob> logger,
@@ -30,6 +39,12 @@ namespace Svodka.Infrastructure.Services
             _options = options.Value;
         }
 
+        /// <summary>
+        /// Выполняет асинхронную агрегацию новостей
+        /// </summary>
+        /// <param name="sourceId">Идентификатор источника для агрегации (опционально, если null - обрабатываются все активные источники)</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Задача выполнения агрегации</returns>
         public async Task ExecuteAsync(int? sourceId = null, CancellationToken cancellationToken = default)
         {
             using var scope = _scopeFactory.CreateScope();
