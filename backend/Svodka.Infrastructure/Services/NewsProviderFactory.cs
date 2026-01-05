@@ -32,12 +32,20 @@ namespace Svodka.Infrastructure.Services
         /// <returns>Экземпляр INewsProvider</returns>
         public INewsProvider GetProvider(string providerType)
         {
-            switch (providerType)
+            switch (providerType.ToLower())
             {
                 case "rss":
                 {
                     return _serviceProvider.GetRequiredService<RssNewsProvider>();
                 }
+                case "github":
+                {
+                    return _serviceProvider.GetRequiredService<GitHubNewsProvider>();
+                }
+                // case "reddit":
+                // {
+                //     return _serviceProvider.GetRequiredService<RedditNewsProvider>();
+                // }
                 default:
                 {
                     throw new ArgumentException($"Неизвестный тип провайдера: {providerType}", nameof(providerType));
