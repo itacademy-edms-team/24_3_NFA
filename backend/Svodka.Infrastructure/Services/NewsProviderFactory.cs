@@ -42,10 +42,10 @@ namespace Svodka.Infrastructure.Services
                 {
                     return _serviceProvider.GetRequiredService<GitHubNewsProvider>();
                 }
-                // case "reddit":
-                // {
-                //     return _serviceProvider.GetRequiredService<RedditNewsProvider>();
-                // }
+                case "reddit":
+                {
+                    return _serviceProvider.GetRequiredService<RedditNewsProvider>();
+                }
                 default:
                 {
                     throw new ArgumentException($"Неизвестный тип провайдера: {providerType}", nameof(providerType));
