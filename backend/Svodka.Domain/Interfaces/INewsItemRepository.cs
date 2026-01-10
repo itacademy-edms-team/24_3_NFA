@@ -29,6 +29,7 @@ namespace Svodka.Domain.Interfaces
         /// <param name="categories">Список категорий для фильтрации</param>
         /// <param name="offset">Смещение для пагинации</param>
         /// <param name="sourceType">Тип источника для фильтрации</param>
+        /// <param name="orderBy">Поле для сортировки (PublishedAtUtc по умолчанию)</param>
         /// <returns>Коллекция новостей</returns>
         Task<IEnumerable<NewsItem>> GetLatestNewsAsync(
             int limit,

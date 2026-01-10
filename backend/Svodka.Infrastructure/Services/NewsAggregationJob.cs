@@ -86,25 +86,46 @@ namespace Svodka.Infrastructure.Services
 
                 try
                 {
-                    _logger.LogDebug("Обработка источника: {SourceName} (ID: {SourceId})", source.Name, source.Id);
+                    _logger.LogDebug("Обработка источника: {SourceName} (ID: {SourceId}, Type: {SourceType})", source.Name, source.Id, source.Type);
 
-                    if (!source.Type.Equals("rss", StringComparison.OrdinalIgnoreCase))
+                    object? configObject = null;
+                    var sourceType = source.Type.ToLower();
+
+                    switch (sourceType)
                     {
-                        _logger.LogWarning("Неизвестный тип источника: {SourceType} для ID {SourceId}", source.Type, source.Id);
-                        continue;
-                    }
+                        case "rss":
+                            configObject = JsonSerializer.Deserialize<RssSourceConfiguration>(source.Configuration);
+                            if (configObject is RssSourceConfiguration rssConfig && rssConfig.Limit == 0)
+                            {
+                                rssConfig.Limit = _options.NewsLimitPerSource;
+                            }
+                            break;
 
-                    var configObject = JsonSerializer.Deserialize<RssSourceConfiguration>(source.Configuration);
+                        case "github":
+                            configObject = JsonSerializer.Deserialize<GitHubSourceConfiguration>(source.Configuration);
+                            if (configObject is GitHubSourceConfiguration githubConfig && githubConfig.Limit == 0)
+                            {
+                                githubConfig.Limit = _options.NewsLimitPerSource;
+                            }
+                            break;
+
+                        case "reddit":
+                            configObject = JsonSerializer.Deserialize<RedditSourceConfiguration>(source.Configuration);
+                            if (configObject is RedditSourceConfiguration redditConfig && redditConfig.Limit == 0)
+                            {
+                                redditConfig.Limit = _options.NewsLimitPerSource;
+                            }
+                            break;
+
+                        default:
+                            _logger.LogWarning("Неизвестный тип источника: {SourceType} для ID {SourceId}", source.Type, source.Id);
+                            continue;
+                    }
 
                     if (configObject == null)
                     {
                         _logger.LogWarning("Не удалось десериализовать конфигурацию источника {SourceId}", source.Id);
                         continue;
-                    }
-
-                    if (configObject.Limit == 0)
-                    {
-                        configObject.Limit = _options.NewsLimitPerSource;
                     }
 
                     var provider = providerFactory.GetProvider(source.Type);
@@ -141,4 +162,3 @@ namespace Svodka.Infrastructure.Services
         }
     }
 }
-

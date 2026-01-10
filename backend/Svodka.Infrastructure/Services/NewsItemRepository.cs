@@ -113,6 +113,7 @@ namespace Svodka.Infrastructure.Services
             }
 
             return await query
+                .Include(n => n.NewsSource)
                 .OrderByDescending(n => n.PublishedAtUtc)
                 .Skip(offset)
                 .Take(limit)

@@ -67,5 +67,10 @@ namespace Svodka.Domain.Entities
         /// </summary>
         [JsonIgnore]
         public virtual NewsSource? NewsSource { get; set; }
+
+        /// <summary>
+        /// Тип источника новости (вычисляемое свойство для сериализации)
+        /// </summary>
+        public string? SourceType => NewsSource?.Type;
     }
 }

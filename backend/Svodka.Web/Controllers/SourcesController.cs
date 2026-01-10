@@ -5,6 +5,7 @@ using Svodka.Domain.Interfaces;
 using Svodka.Domain.Models;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 
 namespace Svodka.Web.Controllers
@@ -51,21 +52,34 @@ namespace Svodka.Web.Controllers
                 return BadRequest(ModelState);
             }
 
-            if (request.Type != "rss")
+            var sourceType = request.Type.ToLower();
+            if (sourceType != "rss" && sourceType != "github" && sourceType != "reddit")
             {
                 _logger.LogWarning("Попытка создать источник с неподдерживаемым типом: {Type}", request.Type);
                 return BadRequest(new ProblemDetails
                 {
                     Title = "Unsupported source type",
-                    Detail = "Currently, only 'rss' type is supported."
+                    Detail = "Currently, only 'rss', 'github', and 'reddit' types are supported."
                 });
             }
 
-            var rssConfig = request.Configuration;
+            string configurationJson;
+            
+            if (sourceType == "rss")
+            {
+                var rssConfig = JsonSerializer.Deserialize<RssSourceConfiguration>(request.Configuration.GetRawText());
+                
+                if (rssConfig == null)
+                {
+                    return BadRequest(new ProblemDetails
+                    {
+                        Title = "Invalid Configuration",
+                        Detail = "Invalid RSS configuration."
+                    });
+                }
 
             _logger.LogInformation("Получена конфигурация: {@Configuration}", rssConfig);
 
-            // Нормализуем URL перед проверкой
             var normalizedUrl = rssConfig.Url?.Trim() ?? string.Empty;
             _logger.LogInformation("Нормализованный URL до проверки: {NormalizedUrl}", normalizedUrl);
 
@@ -79,7 +93,6 @@ namespace Svodka.Web.Controllers
                 });
             }
 
-            // Проверяем, начинается ли URL с http:// или https://, и добавляем при необходимости
             if (!normalizedUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
                 !normalizedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
@@ -97,12 +110,77 @@ namespace Svodka.Web.Controllers
                 });
             }
 
-            // Обновляем URL в конфиге
-            rssConfig.Url = normalizedUrl;
+                rssConfig.Url = normalizedUrl;
 
-            // Сериализуем конфиг в строку для хранения в сущности
-            var configurationJson = JsonSerializer.Serialize(rssConfig);
-            _logger.LogInformation("Обновленная конфигурация: {UpdatedConfiguration}", configurationJson);
+                configurationJson = JsonSerializer.Serialize(rssConfig);
+                _logger.LogInformation("Обновленная конфигурация: {UpdatedConfiguration}", configurationJson);
+            }
+            else if (sourceType == "github")
+            {
+                var rawConfig = request.Configuration.GetRawText();
+                _logger.LogInformation("Получена GitHub конфигурация (raw): {RawConfig}", rawConfig);
+                
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                
+                var githubConfig = JsonSerializer.Deserialize<GitHubSourceConfiguration>(rawConfig, options);
+                _logger.LogInformation("Десериализованная GitHub конфигурация: RepositoryOwner={RepositoryOwner}, RepositoryName={RepositoryName}", 
+                    githubConfig?.RepositoryOwner, githubConfig?.RepositoryName);
+                
+                if (githubConfig == null || string.IsNullOrWhiteSpace(githubConfig.RepositoryOwner) || 
+                    string.IsNullOrWhiteSpace(githubConfig.RepositoryName))
+                {
+                    return BadRequest(new ProblemDetails
+                    {
+                        Title = "Invalid Configuration",
+                        Detail = "GitHub configuration must include RepositoryOwner and RepositoryName."
+                    });
+                }
+
+                configurationJson = JsonSerializer.Serialize(githubConfig);
+                _logger.LogInformation("GitHub конфигурация: {UpdatedConfiguration}", configurationJson);
+            }
+            else if (sourceType == "reddit")
+            {
+                var rawConfig = request.Configuration.GetRawText();
+                _logger.LogInformation("Получена Reddit конфигурация (raw): {RawConfig}", rawConfig);
+                
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                
+                var redditConfig = JsonSerializer.Deserialize<RedditSourceConfiguration>(rawConfig, options);
+                _logger.LogInformation("Десериализованная Reddit конфигурация: Subreddit={Subreddit}", redditConfig?.Subreddit);
+                
+                if (redditConfig == null || string.IsNullOrWhiteSpace(redditConfig.Subreddit))
+                {
+                    return BadRequest(new ProblemDetails
+                    {
+                        Title = "Invalid Configuration",
+                        Detail = "Reddit configuration must include Subreddit."
+                    });
+                }
+
+                var validSortTypes = new[] { "hot", "new", "top" };
+                if (!validSortTypes.Contains(redditConfig.SortType?.ToLower() ?? ""))
+                {
+                    redditConfig.SortType = "hot";
+                }
+
+                configurationJson = JsonSerializer.Serialize(redditConfig);
+                _logger.LogInformation("Reddit конфигурация: {UpdatedConfiguration}", configurationJson);
+            }
+            else
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid Source Type",
+                    Detail = $"Unsupported source type: {sourceType}"
+                });
+            }
 
             var newsSource = new NewsSource
             {
@@ -159,58 +237,111 @@ namespace Svodka.Web.Controllers
             var existingSource = await _newsSourceRepository.GetByIdAsync(id);
             if (existingSource == null) return NotFound();
 
-            _logger.LogInformation("Получен запрос на обновление источника {Id} с конфигурацией {@Configuration}", id, request.Configuration);
-
-            var rssConfig = request.Configuration;
-
-            // Проверяем, что конфигурация не пустая
-            if (rssConfig == null)
+            var sourceType = request.Type.ToLower();
+            if (sourceType != "rss" && sourceType != "github" && sourceType != "reddit")
             {
-                _logger.LogWarning("Конфигурация источника пуста при обновлении источника {Id}", id);
                 return BadRequest(new ProblemDetails
                 {
-                    Title = "Invalid configuration",
-                    Detail = "Configuration is null."
+                    Title = "Unsupported source type",
+                    Detail = "Currently, only 'rss', 'github', and 'reddit' types are supported."
                 });
             }
 
-            // Нормализуем URL при апдейте
-            var normalizedUrl = rssConfig.Url?.Trim();
-            _logger.LogInformation("Нормализованный URL до проверки: {NormalizedUrl} для источника {Id}", normalizedUrl, id);
+            _logger.LogInformation("Получен запрос на обновление источника {Id} типа {Type} с конфигурацией {@Configuration}", id, sourceType, request.Configuration);
 
-            if (string.IsNullOrEmpty(normalizedUrl))
+            string configurationJson;
+
+            if (sourceType == "rss")
             {
-                _logger.LogWarning("Предоставлен пустой или null URL при обновлении источника {Id}. Оригинальный URL: {OriginalUrl}", id, rssConfig.Url);
+                var rssConfig = JsonSerializer.Deserialize<RssSourceConfiguration>(request.Configuration.GetRawText());
+                
+                if (rssConfig == null)
+                {
+                    return BadRequest(new ProblemDetails
+                    {
+                        Title = "Invalid Configuration",
+                        Detail = "Invalid RSS configuration."
+                    });
+                }
+
+                var normalizedUrl = rssConfig.Url?.Trim() ?? string.Empty;
+                
+                if (string.IsNullOrEmpty(normalizedUrl))
+                {
+                    _logger.LogWarning("Предоставлен пустой или null URL при обновлении источника {Id}. Оригинальный URL: {OriginalUrl}", id, rssConfig.Url);
+                    return BadRequest(new ProblemDetails
+                    {
+                        Title = "Invalid URL",
+                        Detail = "The provided URL is empty."
+                    });
+                }
+
+                if (!normalizedUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                    !normalizedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    normalizedUrl = "https://" + normalizedUrl;
+                }
+
+                if (!Uri.IsWellFormedUriString(normalizedUrl, UriKind.Absolute))
+                {
+                    return BadRequest(new ProblemDetails
+                    {
+                        Title = "Invalid URL",
+                        Detail = "The provided URL is not valid."
+                    });
+                }
+
+                rssConfig.Url = normalizedUrl;
+                configurationJson = JsonSerializer.Serialize(rssConfig);
+            }
+            else if (sourceType == "github")
+            {
+                var githubConfig = JsonSerializer.Deserialize<GitHubSourceConfiguration>(request.Configuration.GetRawText());
+                
+                if (githubConfig == null || string.IsNullOrWhiteSpace(githubConfig.RepositoryOwner) || 
+                    string.IsNullOrWhiteSpace(githubConfig.RepositoryName))
+                {
+                    return BadRequest(new ProblemDetails
+                    {
+                        Title = "Invalid Configuration",
+                        Detail = "GitHub configuration must include RepositoryOwner and RepositoryName."
+                    });
+                }
+
+                configurationJson = JsonSerializer.Serialize(githubConfig);
+            }
+            else if (sourceType == "reddit")
+            {
+                var redditConfig = JsonSerializer.Deserialize<RedditSourceConfiguration>(request.Configuration.GetRawText());
+                
+                if (redditConfig == null || string.IsNullOrWhiteSpace(redditConfig.Subreddit))
+                {
+                    return BadRequest(new ProblemDetails
+                    {
+                        Title = "Invalid Configuration",
+                        Detail = "Reddit configuration must include Subreddit."
+                    });
+                }
+
+                var validSortTypes = new[] { "hot", "new", "top" };
+                if (!validSortTypes.Contains(redditConfig.SortType?.ToLower() ?? ""))
+                {
+                    redditConfig.SortType = "hot";
+                }
+
+                configurationJson = JsonSerializer.Serialize(redditConfig);
+            }
+            else
+            {
                 return BadRequest(new ProblemDetails
                 {
-                    Title = "Invalid URL",
-                    Detail = "The provided URL is empty."
+                    Title = "Invalid Source Type",
+                    Detail = $"Unsupported source type: {sourceType}"
                 });
             }
 
-            if (!normalizedUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
-                !normalizedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-            {
-                // Пробуем добавить https:// как префикс
-                _logger.LogInformation("Добавляем префикс https:// к URL: {OriginalUrl} для источника {Id}", normalizedUrl, id);
-                normalizedUrl = "https://" + normalizedUrl;
-            }
-
-            if (!Uri.IsWellFormedUriString(normalizedUrl, UriKind.Absolute))
-            {
-                _logger.LogWarning("Предоставленный URL не является корректным: {Url} для источника {Id}", normalizedUrl, id);
-                return BadRequest(new ProblemDetails
-                {
-                    Title = "Invalid URL",
-                    Detail = "The provided URL is not valid."
-                });
-            }
-
-            rssConfig.Url = normalizedUrl;
-            var configurationJson = JsonSerializer.Serialize(rssConfig);
             _logger.LogInformation("Обновленная конфигурация: {UpdatedConfiguration} для источника {Id}", configurationJson, id);
 
-            // Обновляем поля
             existingSource.Name = request.Name;
             existingSource.Type = request.Type;
             existingSource.Configuration = configurationJson;
@@ -271,11 +402,12 @@ namespace Svodka.Web.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ошибка при удалении источника {SourceName} (ID: {SourceId})", source.Name, id);
+                var sourceNameForLog = source?.Name ?? "Unknown";
+                _logger.LogError(ex, "Ошибка при удалении источника {SourceName} (ID: {SourceId}). Детали: {ExceptionMessage}", sourceNameForLog, id, ex.Message);
                 return StatusCode(500, new ProblemDetails
                 {
                     Title = "Database Error",
-                    Detail = "An error occurred while deleting the source."
+                    Detail = $"An error occurred while deleting the source. Error: {ex.Message}"
                 });
             }
         }
@@ -316,16 +448,41 @@ namespace Svodka.Web.Controllers
             var categories = new List<string>();
             foreach (var source in sources)
             {
-                var config = JsonSerializer.Deserialize<RssSourceConfiguration>(source.Configuration);
-                if (!string.IsNullOrEmpty(config?.Category) && !categories.Contains(config.Category))
+                try
                 {
-                    categories.Add(config.Category);
+                    if (source.Type.ToLower() == "rss")
+                    {
+                        var config = JsonSerializer.Deserialize<RssSourceConfiguration>(source.Configuration);
+                        if (!string.IsNullOrEmpty(config?.Category) && !categories.Contains(config.Category))
+                        {
+                            categories.Add(config.Category);
+                        }
+                    }
+                    else if (source.Type.ToLower() == "reddit")
+                    {
+                        var config = JsonSerializer.Deserialize<RedditSourceConfiguration>(source.Configuration);
+                        if (!string.IsNullOrEmpty(config?.Category) && !categories.Contains(config.Category))
+                        {
+                            categories.Add(config.Category);
+                        }
+                    }
+                    else if (source.Type.ToLower() == "github")
+                    {
+                        if (!categories.Contains("GitHub"))
+                        {
+                            categories.Add("GitHub");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Ошибка при десериализации конфигурации источника {SourceId} для фильтров", source.Id);
                 }
             }
 
             var filterOptions = new
             {
-                sources = sources.Select(s => new { s.Id, s.Name }).ToList(),
+                sources = sources.Select(s => new { s.Id, s.Name, s.Type }).ToList(),
                 categories
             };
 
@@ -345,17 +502,16 @@ namespace Svodka.Web.Controllers
         public string Name { get; set; } = string.Empty;
 
         /// <summary>
-        /// Тип источника (например, "rss")
+        /// Тип источника (rss, github, reddit)
         /// </summary>
         [Required]
-        [RegularExpression("rss", ErrorMessage = "Only 'rss' type is supported for now.")]
         public string Type { get; set; } = string.Empty;
 
         /// <summary>
-        /// Конфигурация источника
+        /// Конфигурация источника (может быть RssSourceConfiguration, GitHubSourceConfiguration или RedditSourceConfiguration)
         /// </summary>
         [Required]
-        public RssSourceConfiguration Configuration { get; set; } = new();
+        public JsonElement Configuration { get; set; }
 
         /// <summary>
         /// Флаг активности источника

@@ -21,10 +21,26 @@ builder.Services.AddHttpClient<IRssService, RssService>(client =>
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 
+// HttpClient для GitHub
+builder.Services.AddHttpClient<IGitHubService, GitHubService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.BaseAddress = new Uri("https://api.github.com");
+});
+
+// HttpClient для Reddit
+builder.Services.AddHttpClient<IRedditService, RedditService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.BaseAddress = new Uri("https://www.reddit.com");
+});
+
 // Репозитории и сервисы
 builder.Services.AddScoped<INewsItemRepository, NewsItemRepository>();
 builder.Services.AddScoped<INewsSourceRepository, NewsSourceRepository>();
 builder.Services.AddTransient<RssNewsProvider>();
+builder.Services.AddTransient<GitHubNewsProvider>();
+builder.Services.AddTransient<RedditNewsProvider>();
 builder.Services.AddTransient<INewsProviderFactory, NewsProviderFactory>();
 builder.Services.AddSingleton<INewsAggregationJob, NewsAggregationJob>();
 builder.Services.AddHostedService<NewsAggregationBackgroundService>();

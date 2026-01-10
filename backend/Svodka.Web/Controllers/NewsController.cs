@@ -35,7 +35,7 @@ namespace Svodka.Web.Controllers
         /// <param name="sourceType">Тип источника</param>
         /// <returns>Список новостей</returns>
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<NewsItem>>> GetLatestNews(
+        public async Task<ActionResult> GetLatestNews(
             int offset = 0,
             int limit = 10,
             string? q = null,
@@ -58,12 +58,13 @@ namespace Svodka.Web.Controllers
                 };
             }
 
-            // Преобразуем массивы в списки для использования в репозитории
             var sourcesList = sources?.ToList();
             var categoriesList = categories?.ToList();
 
             var news = await _newsItemRepository.GetLatestNewsAsync(limit, q, fromDateUtc, sourcesList, categoriesList, offset, sourceType);
-            return Ok(news);
+            bool hasMore = news.Count() == limit;
+
+            return Ok(new{items = news,hasMore = hasMore,offset = offset,limit = limit});
         }
     }
 }
