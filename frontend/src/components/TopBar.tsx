@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaBars, FaSearch, FaFilter, FaUserCircle, FaChevronDown } from 'react-icons/fa';
+import { FaBars, FaSearch, FaFilter, FaUserCircle, FaChevronDown, FaPlus } from 'react-icons/fa';
 import { fetchFilterOptions, SOURCES_CHANGED_EVENT } from '../services/newsService';
+import { createPortal } from 'react-dom';
 
-export type TopBarPeriod = 'day' | 'week' | 'month';
+export type TopBarPeriod = 'day' | 'week' | 'month' | '';
 
 interface TopBarProps {
   searchQuery: string;
@@ -26,13 +27,14 @@ const TopBar: React.FC<TopBarProps> = ({
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
-  const [filterOptions, setFilterOptions] = useState<{ 
-    sources: Array<{ id: number, name: string }>, 
-    categories: string[] 
+  const [filterOptions, setFilterOptions] = useState<{
+    sources: Array<{ id: number, name: string }>,
+    categories: string[]
   } | null>(null);
   const [selectedSources, setSelectedSources] = useState<number[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const filterRef = useRef<HTMLDivElement>(null);
+  const [filterPosition, setFilterPosition] = useState({ top: 0, left: 0 });
   const [filterOptionsVersion, setFilterOptionsVersion] = useState(0);
 
   useEffect(() => {
@@ -60,9 +62,12 @@ const TopBar: React.FC<TopBarProps> = ({
     return () => window.removeEventListener(SOURCES_CHANGED_EVENT, handleSourcesChanged);
   }, []);
 
+  const menuRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node) &&
+          menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setFilterMenuOpen(false);
       }
     };
@@ -107,9 +112,9 @@ const TopBar: React.FC<TopBarProps> = ({
     onFiltersChange?.({
       sources: [],
       categories: [],
-      period: 'week'
+      period: '' as any
     });
-    onPeriodChange('week');
+    onPeriodChange('' as any);
     setFilterMenuOpen(false);
   };
 
@@ -162,15 +167,38 @@ const TopBar: React.FC<TopBarProps> = ({
           >
             ЗА МЕСЯЦ
           </button>
-          <button 
+          <button
             className="ml-2 text-slate-500 hover:text-slate-700 relative"
-            onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+            onClick={() => {
+              if (filterRef.current) {
+                const rect = filterRef.current.getBoundingClientRect();
+                setFilterPosition({
+                  top: rect.bottom + window.scrollY,
+                  left: rect.left + window.scrollX
+                });
+              }
+              setFilterMenuOpen(!filterMenuOpen);
+            }}
           >
             <FaFilter />
           </button>
+          <button
+            className="ml-2 px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-full hover:bg-indigo-700 transition-colors flex items-center space-x-1"
+            // onClick={() => setAddSourceModalOpen(true)}
+          >
+            <FaPlus className="w-3 h-3" />
+            <span>Добавить источник</span>
+          </button>
 
-          {filterMenuOpen && (
-            <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-slate-200 z-50 max-h-[70vh] overflow-y-auto">
+          {filterMenuOpen && createPortal(
+            <div
+              ref={menuRef}
+              className="fixed w-80 bg-white rounded-lg shadow-xl border border-slate-200 z-[99999] max-h-[70vh] overflow-y-auto"
+              style={{
+                top: `${filterPosition.top + 8}px`, // добавляем небольшой отступ
+                left: `${filterPosition.left}px`
+              }}
+            >
               <div className="p-4 space-y-4">
                 {/* Период */}
                 <div>
@@ -263,7 +291,8 @@ const TopBar: React.FC<TopBarProps> = ({
                   </button>
                 </div>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       </div>
@@ -271,6 +300,8 @@ const TopBar: React.FC<TopBarProps> = ({
       <div>
         <FaUserCircle className="w-9 h-9 text-slate-500" />
       </div>
+
+      
     </header>
   );
 };

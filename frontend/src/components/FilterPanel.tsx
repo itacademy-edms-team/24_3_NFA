@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom'; 
 import { fetchFilterOptions } from '../services/newsService';
 
 interface FilterPanelProps {
@@ -16,10 +17,14 @@ interface FilterPanelProps {
 
 const FilterPanel: React.FC<FilterPanelProps> = ({ onFilterChange, currentFilters }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null); 
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({}); 
+  
   const [filterOptions, setFilterOptions] = useState<{ 
     sources: Array<{ id: number, name: string }>, 
     categories: string[] 
   } | null>(null);
+  
   const [selectedSources, setSelectedSources] = useState<number[]>(currentFilters.sources);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(currentFilters.categories);
   const [selectedPeriod, setSelectedPeriod] = useState<string>(currentFilters.period);
@@ -33,7 +38,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ onFilterChange, currentFilter
         console.error('Error loading filter options:', error);
       }
     };
-
     loadFilterOptions();
   }, []);
 
@@ -42,6 +46,22 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ onFilterChange, currentFilter
     setSelectedCategories(currentFilters.categories);
     setSelectedPeriod(currentFilters.period);
   }, [currentFilters]);
+
+
+  const toggleDropdown = () => {
+    if (!isOpen && buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        setDropdownStyle({
+            position: 'absolute',
+
+            top: `${rect.bottom + window.scrollY + 8}px`, 
+
+            left: `${rect.right + window.scrollX - 320}px`, 
+            zIndex: 9999
+        });
+    }
+    setIsOpen(!isOpen);
+  };
 
   const handleSourceToggle = (sourceId: number) => {
     setSelectedSources(prev => 
@@ -71,29 +91,29 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ onFilterChange, currentFilter
   const resetFilters = () => {
     setSelectedSources([]);
     setSelectedCategories([]);
-    setSelectedPeriod('week');
+    setSelectedPeriod('');
     onFilterChange({
       sources: [],
       categories: [],
-      period: 'week'
+      period: ''
     });
     setIsOpen(false);
   };
 
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors flex items-center"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
-        </svg>
-        Фильтры
-      </button>
 
-      {isOpen && (
-        <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[70vh] overflow-y-auto">
+  const dropdownContent = (
+    <>
+
+        <div 
+            className="fixed inset-0 z-[9998] cursor-default" 
+            onClick={() => setIsOpen(false)} 
+        />
+        
+        <div 
+            style={dropdownStyle}
+            className="w-80 bg-white rounded-lg shadow-xl border border-gray-200 max-h-[70vh] overflow-y-auto z-[9999]"
+            onClick={(e) => e.stopPropagation()}
+        >
           <div className="p-4">
             <div className="mb-4">
               <h3 className="font-medium mb-2">Период</h3>
@@ -168,7 +188,23 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ onFilterChange, currentFilter
             </div>
           </div>
         </div>
-      )}
+    </>
+  );
+
+  return (
+    <div className="relative">
+      <button
+        ref={buttonRef}
+        onClick={toggleDropdown}
+        className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors flex items-center"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
+        </svg>
+        Фильтры
+      </button>
+
+      {isOpen && createPortal(dropdownContent, document.body)}
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { type NewsItem } from '../types/NewsItem';
+import { FaRss, FaGithub, FaReddit } from 'react-icons/fa';
 
 interface NewsItemCardProps {
   newsItem: NewsItem;
@@ -21,8 +22,42 @@ const NewsItemCard: React.FC<NewsItemCardProps> = ({ newsItem }) => {
     ? description 
     : description.substring(0, 300) + '...';
 
+  const getSourceIcon = () => {
+    const sourceType = newsItem.sourceType?.toLowerCase();
+    
+    const iconWrapperClass = "flex items-center justify-center w-8 h-8 bg-white rounded-full"; 
+
+    if (sourceType === 'rss') {
+        return (
+            <div className={iconWrapperClass}>
+                <FaRss className="w-5 h-5 text-orange-500" />
+            </div>
+        );
+    }
+    if (sourceType === 'github') {
+        return (
+            <div className={iconWrapperClass}>
+                <FaGithub className="w-5 h-5 text-gray-800" />
+            </div>
+        );
+    }
+    if (sourceType === 'reddit') {
+        return (
+            <div className={iconWrapperClass}>
+                <FaReddit className="w-5 h-5 text-orange-600" />
+            </div>
+        );
+    }
+    return null;
+  };
+
   return (
-    <article className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition-shadow duration-200">
+    <article className="bg-white rounded-2xl p-6 border border-slate-100  relative">
+      {newsItem.sourceType && (
+        <div className="absolute top-4 right-4 z-10">
+          {getSourceIcon()}
+        </div>
+      )}
       {newsItem.imageUrl && (
         <div className="mb-4 rounded-xl overflow-hidden">
           <img 

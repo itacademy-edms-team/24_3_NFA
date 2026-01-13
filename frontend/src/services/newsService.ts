@@ -9,7 +9,7 @@ export const emitSourcesChanged = () => {
   }
 };
 
-export type PeriodFilter = 'day' | 'week' | 'month' | undefined;
+export type PeriodFilter = 'day' | 'week' | 'month' | '';
 
 export interface FilterParams {
   offset?: number;
@@ -21,11 +21,17 @@ export interface FilterParams {
   sourceType?: string;
 }
 
-export const fetchLatestNews = async (params: FilterParams = {}): Promise<NewsItem[]> => {
+export interface NewsResponse {
+    items: NewsItem[];
+    hasMore: boolean;
+    offset: number;
+    limit: number;
+}
+
+export const fetchLatestNews = async (params: FilterParams = {}): Promise<NewsResponse> => {
   try {
     const urlParams = new URLSearchParams();
 
-    // Установка значений по умолчанию
     urlParams.set('offset', String(params.offset || 0));
     urlParams.set('limit', String(params.limit || 10));
 
@@ -53,8 +59,19 @@ export const fetchLatestNews = async (params: FilterParams = {}): Promise<NewsIt
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    const news: NewsItem[] = await response.json();
-    return news;
+    const data = await response.json();
+
+    if (Array.isArray(data)) {
+        return {
+            items: data,
+            hasMore: data.length === (params.limit || 10),
+            offset: params.offset || 0,
+            limit: params.limit || 10
+        };
+    }
+
+    return data as NewsResponse;
+
   } catch (error) {
     console.error("Error fetching news:", error);
     throw error;
@@ -81,10 +98,26 @@ export interface RssSourceConfiguration {
   category?: string;
 }
 
+export interface GitHubSourceConfiguration {
+  repositoryOwner: string;
+  repositoryName: string;
+  token?: string;
+  eventTypes?: string[];
+  limit: number;
+  category?: string;
+}
+
+export interface RedditSourceConfiguration {
+  subreddit: string;
+  sortType: string;
+  limit: number;
+  category?: string;
+}
+
 export interface SourceData {
   name: string;
   type: string; 
-  configuration: RssSourceConfiguration;
+  configuration: RssSourceConfiguration | GitHubSourceConfiguration | RedditSourceConfiguration;
   isActive: boolean;
 }
 
@@ -120,12 +153,20 @@ export const updateSource = async (id: number, sourceData: SourceData): Promise<
 
 export const createSource = async (sourceData: SourceData): Promise<void> => {
   try {
+
+    const requestBody = {
+      name: sourceData.name,
+      type: sourceData.type,
+      configuration: sourceData.configuration, 
+      isActive: sourceData.isActive,
+    };
+
     const response = await fetch(`${API_BASE_URL}/api/sources`, { 
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(sourceData),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {

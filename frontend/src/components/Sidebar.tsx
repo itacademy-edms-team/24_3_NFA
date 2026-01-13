@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  FaTelegram,
-  FaVk,
+  FaGithub,
+  FaReddit,
   FaRss,
   FaFolder,
   FaPlus,
@@ -77,14 +77,13 @@ const Sidebar: React.FC<SidebarProps> = ({
   }, [loadRssSources]);
 
   const handleItemClick = (item: SidebarItem) => {
-    if (item.type === 'rss') {
-      onSourceTypeChange?.('rss');
+    // Если у элемента есть тип источника (github, reddit, rss), устанавливаем фильтр
+    if (item.type && (item.type === 'rss' || item.type === 'github' || item.type === 'reddit')) {
+      onSourceTypeChange?.(item.type);
       navigate('/');
-    } else if (item.title === 'Telegram' || item.title === 'ВКонтакте') {
-      // Для будущих типов источников
-      onSourceTypeChange?.(undefined);
-      navigate('/');
+
     } else {
+      // Для других элементов (коллекции и т.д.) сбрасываем фильтр
       onSourceTypeChange?.(undefined);
       navigate('/');
     }
@@ -133,8 +132,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     {
       name: 'Источники',
       items: [
-        { title: 'Telegram', icon: FaTelegram, type: 'telegram' },
-        { title: 'ВКонтакте', icon: FaVk, type: 'vk' },
+        { title: 'GitHub источники', icon: FaGithub, type: 'github' },
+        { title: 'Reddit Источники', icon: FaReddit, type: 'reddit' },
         { title: 'RSS каналы', icon: FaRss, type: 'rss' },
       ],
     },

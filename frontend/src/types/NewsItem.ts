@@ -9,4 +9,6 @@ export interface NewsItem {
   author?: string;
   imageUrl?: string; 
   category?: string; 
-  indexedAtUtc: string;}     
+  indexedAtUtc: string;
+  sourceType?: string;
+}     

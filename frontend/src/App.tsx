@@ -10,13 +10,13 @@ import { type PeriodFilter } from './services/newsService';
 import './App.css';
 
 function App() {
-  const [timeFilter, setTimeFilter] = useState<PeriodFilter>('week');
+  const [timeFilter, setTimeFilter] = useState<PeriodFilter>('' as PeriodFilter);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sourceTypeFilter, setSourceTypeFilter] = useState<string | undefined>(undefined);
   const [appliedFilters, setAppliedFilters] = useState({
     sources: [] as number[],
     categories: [] as string[],
-    period: 'week' as TopBarPeriod
+    period: '' as TopBarPeriod
   });
   const navigate = useNavigate();
 
@@ -40,7 +40,7 @@ function App() {
           <TopBar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            period={(timeFilter as TopBarPeriod) ?? 'week'}
+            period={timeFilter as TopBarPeriod}
             onPeriodChange={handlePeriodChange}
             onFiltersChange={setAppliedFilters}
           />
