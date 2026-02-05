@@ -84,7 +84,7 @@ const SourcesList: React.FC = () => {
         <h2 className="text-xl font-semibold text-slate-900">Источники новостей</h2>
         <button
           onClick={() => navigate('/add-source')}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
         >
           Добавить источник
         </button>
@@ -96,34 +96,34 @@ const SourcesList: React.FC = () => {
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-slate-200">
+            <thead className="bg-slate-50">
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Имя
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Тип
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Статус
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Последняя проверка
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Действия
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white divide-y divide-slate-200">
               {sources.map((source) => (
                 <tr key={source.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{source.name}</div>
+                    <div className="text-sm font-medium text-slate-900">{source.name}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">{source.type}</div>
+                    <div className="text-sm text-slate-500 capitalize">{source.type}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -132,26 +132,26 @@ const SourcesList: React.FC = () => {
                       {source.isActive ? 'Активный' : 'Неактивный'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                     {source.lastPolledAtUtc ? new Date(source.lastPolledAtUtc).toLocaleString() : 'Никогда'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex flex-col items-start space-y-2">
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleReadNews(source.id)}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="px-3 py-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
                       >
                         Читать новости
                       </button>
                       <button
                         onClick={() => handleEdit(source.id)}
-                        className="text-slate-600 hover:text-slate-800"
+                        className="px-3 py-1.5 text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded-md transition-colors"
                       >
                         Редактировать
                       </button>
                       <button
                         onClick={() => setShowDeleteConfirm(source.id)}
-                        className="text-red-600 hover:text-red-900"
+                        className="px-3 py-1.5 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-md transition-colors"
                       >
                         Удалить
                       </button>
@@ -166,24 +166,24 @@ const SourcesList: React.FC = () => {
 
       {/* Модальное окно подтверждения удаления */}
       {showDeleteConfirm !== null && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Подтверждение удаления</h3>
-            <p className="text-gray-600 mb-4">
+        <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Подтверждение удаления</h3>
+            <p className="text-slate-600 mb-6">
               Вы уверены, что хотите удалить этот источник? Все связанные новости будут безвозвратно удалены.
             </p>
-            <div className="flex justify-end space-x-3">
+            <div className="flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(null)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2 border border-slate-300 rounded-full text-slate-700 hover:bg-slate-50 transition-colors"
               >
                 Отмена
               </button>
               <button
                 type="button"
                 onClick={() => handleDelete(showDeleteConfirm)}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                className="px-4 py-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
               >
                 Удалить
               </button>
