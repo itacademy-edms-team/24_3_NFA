@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FaBars, FaSearch, FaFilter, FaUserCircle, FaChevronDown, FaPlus } from 'react-icons/fa';
 import { fetchFilterOptions, SOURCES_CHANGED_EVENT } from '../services/newsService';
 import { createPortal } from 'react-dom';
@@ -24,6 +25,7 @@ const TopBar: React.FC<TopBarProps> = ({
   onPeriodChange,
   onFiltersChange,
 }) => {
+  const navigate = useNavigate();
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
@@ -183,8 +185,8 @@ const TopBar: React.FC<TopBarProps> = ({
             <FaFilter />
           </button>
           <button
+            onClick={() => navigate('/add-source')}
             className="ml-2 px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-full hover:bg-indigo-700 transition-colors flex items-center space-x-1"
-            // onClick={() => setAddSourceModalOpen(true)}
           >
             <FaPlus className="w-3 h-3" />
             <span>Добавить источник</span>

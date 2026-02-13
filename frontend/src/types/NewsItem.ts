@@ -3,12 +3,13 @@ export interface NewsItem {
   title: string;
   description: string;
   link: string;
-  publishedAtUtc: string; 
+  publishedAtUtc: string;
   sourceId: number;
   sourceItemId: string;
   author?: string;
-  imageUrl?: string; 
-  category?: string; 
+  imageUrl?: string;
+  category?: string;
   indexedAtUtc: string;
   sourceType?: string;
-}     
+  metadata?: string;
+}

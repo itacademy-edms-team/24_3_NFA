@@ -4,8 +4,7 @@ import {
   FaGithub,
   FaReddit,
   FaRss,
-  FaFolder,
-  FaPlus,
+  FaHeart,
   FaBars,
   FaCog,
   FaEllipsisV,
@@ -17,6 +16,7 @@ interface SidebarItem {
   icon: React.ComponentType<{ className?: string }>;
   type?: string;
   id?: number;
+  route?: string;
 }
 
 interface SidebarGroup {
@@ -77,13 +77,15 @@ const Sidebar: React.FC<SidebarProps> = ({
   }, [loadRssSources]);
 
   const handleItemClick = (item: SidebarItem) => {
-    // Если у элемента есть тип источника (github, reddit, rss), устанавливаем фильтр
+    if (item.route === '/favorites') {
+      onSourceTypeChange?.(undefined);
+      navigate('/favorites');
+      return;
+    }
     if (item.type && (item.type === 'rss' || item.type === 'github' || item.type === 'reddit')) {
       onSourceTypeChange?.(item.type);
       navigate('/');
-
     } else {
-      // Для других элементов (коллекции и т.д.) сбрасываем фильтр
       onSourceTypeChange?.(undefined);
       navigate('/');
     }
@@ -138,11 +140,9 @@ const Sidebar: React.FC<SidebarProps> = ({
       ],
     },
     {
-      name: 'Ваши коллекции',
+      name: 'Избранное',
       items: [
-        { title: 'Коллекция 1', icon: FaFolder },
-        { title: 'Коллекция 2', icon: FaFolder },
-        { title: 'Коллекция 3', icon: FaFolder },
+        { title: 'Избранное', icon: FaHeart, route: '/favorites' },
       ],
     },
   ];
@@ -224,12 +224,6 @@ const Sidebar: React.FC<SidebarProps> = ({
             </ul>
           </div>
         ))}
-        {!collapsed && (
-          <button className="flex items-center w-full p-3 text-sm font-medium text-white bg-slate-900 rounded-2xl hover:bg-slate-800 transition-colors shadow-sm">
-            <FaPlus className="text-lg" />
-            <span className="ml-3 whitespace-nowrap">Добавить коллекцию</span>
-          </button>
-        )}
       </div>
 
       <div className="p-3 border-t border-slate-200">
