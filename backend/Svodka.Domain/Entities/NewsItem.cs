@@ -72,5 +72,10 @@ namespace Svodka.Domain.Entities
         /// Тип источника новости (вычисляемое свойство для сериализации)
         /// </summary>
         public string? SourceType => NewsSource?.Type;
+
+        /// <summary>
+        /// Дополнительные данные источника в формате JSON (например, тип события GitHub, SHA коммита и т.д.)
+        /// </summary>
+        public string? Metadata { get; set; }
     }
 }

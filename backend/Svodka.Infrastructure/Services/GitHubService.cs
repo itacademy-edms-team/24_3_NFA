@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Svodka.Infrastructure.Services
@@ -86,13 +87,17 @@ namespace Svodka.Infrastructure.Services
             var title = GetEventTitle(gitHubEvent);
             var description = GetEventDescription(gitHubEvent);
             var link = $"https://github.com/{owner}/{repo}";
-
+            string? sha = null;
+            int? prNumber = null;
 
             if (gitHubEvent.Payload != null)
             {
                 if (gitHubEvent.Type == "PushEvent" && gitHubEvent.Payload.Commits != null && gitHubEvent.Payload.Commits.Any())
                 {
-                    link = $"https://github.com/{owner}/{repo}/commit/{gitHubEvent.Payload.Commits.First().Sha}";
+                    var firstCommit = gitHubEvent.Payload.Commits.First();
+                    sha = firstCommit.Sha;
+                    link = $"https://github.com/{owner}/{repo}/commit/{sha}";
+                    description = firstCommit.Message + "\n\n" + description;
                 }
                 else if (gitHubEvent.Type == "IssuesEvent" && gitHubEvent.Payload.Issue != null)
                 {
@@ -100,9 +105,22 @@ namespace Svodka.Infrastructure.Services
                 }
                 else if (gitHubEvent.Type == "PullRequestEvent" && gitHubEvent.Payload.PullRequest != null)
                 {
-                    link = gitHubEvent.Payload.PullRequest.HtmlUrl ?? link;
+                    var pr = gitHubEvent.Payload.PullRequest;
+                    link = pr.HtmlUrl ?? link;
+                    prNumber = pr.Number;
+                }
+                else if (gitHubEvent.Type == "ReleaseEvent" && gitHubEvent.Payload.Release != null)
+                {
+                    link = gitHubEvent.Payload.Release.HtmlUrl ?? $"https://github.com/{owner}/{repo}/releases";
                 }
             }
+
+            var metadata = new
+            {
+                gitHubType = gitHubEvent.Type,
+                sha,
+                prNumber
+            };
 
             return new NewsItem
             {
@@ -113,8 +131,9 @@ namespace Svodka.Infrastructure.Services
                 SourceItemId = gitHubEvent.Id,
                 Author = gitHubEvent.Actor?.Login,
                 ImageUrl = gitHubEvent.Actor?.AvatarUrl,
-                Category = "GitHub",
-                IndexedAtUtc = DateTime.UtcNow
+                Category = gitHubEvent.Type,
+                IndexedAtUtc = DateTime.UtcNow,
+                Metadata = JsonSerializer.Serialize(metadata)
             };
         }
 
@@ -154,7 +173,21 @@ namespace Svodka.Infrastructure.Services
         {
             public string Id { get; set; } = string.Empty;
             public string Type { get; set; } = string.Empty;
-            public DateTime CreatedAt { get; set; }
+            public string CreatedAtRaw { get; set; } = string.Empty;
+            
+            [JsonIgnore]
+            public DateTime CreatedAt 
+            {
+                get
+                {
+                    if (DateTime.TryParse(CreatedAtRaw, out var result))
+                    {
+                        return result;
+                    }
+                    return DateTime.UtcNow;
+                }
+            }
+            
             public GitHubActor? Actor { get; set; }
             public GitHubRepo? Repo { get; set; }
             public GitHubPayload? Payload { get; set; }
@@ -198,12 +231,14 @@ namespace Svodka.Infrastructure.Services
             public string Title { get; set; } = string.Empty;
             public string? Body { get; set; }
             public string? HtmlUrl { get; set; }
+            public int Number { get; set; }
         }
 
         private class GitHubRelease
         {
             public string Name { get; set; } = string.Empty;
             public string? Body { get; set; }
+            public string? HtmlUrl { get; set; }
         }
     }
 }

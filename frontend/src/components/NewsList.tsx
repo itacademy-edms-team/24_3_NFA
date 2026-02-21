@@ -3,12 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import NewsItemCard from './NewsItemCard';
 import type { NewsItem } from '../types/NewsItem';
 import { fetchLatestNews, type PeriodFilter, type FilterParams } from '../services/newsService';
-
-// Интерфейс ответа
-interface NewsResponse {
-  items: NewsItem[];
-  hasMore: boolean;
-}
+import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 
 interface NewsListProps {
   timeFilter: PeriodFilter;
@@ -21,6 +16,8 @@ interface NewsListProps {
   };
 }
 
+const MAX_NEWS_IN_MEMORY = 100;
+
 const NewsList: React.FC<NewsListProps> = ({ timeFilter, searchQuery, sourceType, appliedFilters }) => {
   const location = useLocation();
   const [news, setNews] = useState<NewsItem[]>([]);
@@ -28,13 +25,15 @@ const NewsList: React.FC<NewsListProps> = ({ timeFilter, searchQuery, sourceType
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [hasMore, setHasMore] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [showHeader, setShowHeader] = useState<boolean>(true);
   const navigate = useNavigate();
-  
-  // Реф для отслеживания текущего смещения
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
   const offset = useRef(0);
-  
-  // НОВЫЙ РЕФ: Якорь для бесконечного скролла
-  const observerTarget = useRef<HTMLDivElement>(null);
+  const hasMoreRef = useRef(hasMore);
+  const loadingMoreRef = useRef(loadingMore);
+
+  hasMoreRef.current = hasMore;
+  loadingMoreRef.current = loadingMore;
 
   const [filters, setFilters] = useState({
     sources: appliedFilters?.sources || [] as number[],
@@ -43,13 +42,17 @@ const NewsList: React.FC<NewsListProps> = ({ timeFilter, searchQuery, sourceType
   });
 
   const loadNews = useCallback(async (reset = false) => {
+    console.log('loadNews called', { reset, offset: offset.current, hasMore: hasMoreRef.current });
+    
     if (reset) {
       setLoading(true);
       offset.current = 0;
       setHasMore(true);
     } else {
-      // Если уже грузим или больше нечего грузить - выходим
-      if (loadingMore || !hasMore) return;
+      if (loadingMoreRef.current || !hasMoreRef.current) {
+        console.log('Skipping load:', { loadingMore: loadingMoreRef.current, hasMore: hasMoreRef.current });
+        return;
+      }
       setLoadingMore(true);
     }
 
@@ -65,7 +68,9 @@ const NewsList: React.FC<NewsListProps> = ({ timeFilter, searchQuery, sourceType
       };
 
       const rawResponse = await fetchLatestNews(params) as any;
-      
+
+      console.log('Server response:', { rawResponse, params });
+
       let newsItems: NewsItem[] = [];
       let serverHasMore = false;
 
@@ -80,6 +85,8 @@ const NewsList: React.FC<NewsListProps> = ({ timeFilter, searchQuery, sourceType
           serverHasMore = false;
       }
 
+      console.log('Parsed news:', { newsItemsCount: newsItems.length, serverHasMore });
+
       // Fallback логика
       if (newsItems.length === 0 && params.sources && params.sources.length > 0) {
         const paramsWithoutSources: FilterParams = {
@@ -87,7 +94,7 @@ const NewsList: React.FC<NewsListProps> = ({ timeFilter, searchQuery, sourceType
           sources: undefined
         };
         const rawFallbackResponse = await fetchLatestNews(paramsWithoutSources) as any;
-        
+
         if (Array.isArray(rawFallbackResponse)) {
             newsItems = rawFallbackResponse;
             serverHasMore = newsItems.length === 10;
@@ -103,7 +110,10 @@ const NewsList: React.FC<NewsListProps> = ({ timeFilter, searchQuery, sourceType
         setNews(prev => {
             const existingIds = new Set(prev.map(i => i.id));
             const uniqueNewItems = newsItems.filter(i => !existingIds.has(i.id));
-            return [...prev, ...uniqueNewItems];
+            const merged = [...prev, ...uniqueNewItems];
+            return merged.length > MAX_NEWS_IN_MEMORY
+              ? merged.slice(0, MAX_NEWS_IN_MEMORY)
+              : merged;
         });
       }
 
@@ -120,7 +130,7 @@ const NewsList: React.FC<NewsListProps> = ({ timeFilter, searchQuery, sourceType
         setLoadingMore(false);
       }
     }
-  }, [searchQuery, filters, sourceType, hasMore, loadingMore]);
+  }, [searchQuery, filters, sourceType]);
 
   // Обновление фильтров
   useEffect(() => {
@@ -149,39 +159,26 @@ const NewsList: React.FC<NewsListProps> = ({ timeFilter, searchQuery, sourceType
   // Первая загрузка / перезагрузка при смене фильтров
   useEffect(() => {
     loadNews(true);
-  }, [filters, searchQuery, timeFilter, sourceType]); 
+  }, [filters, searchQuery, timeFilter, sourceType]);
 
-  // =========================================================
-  // НОВАЯ ЛОГИКА СКРОЛЛА: Intersection Observer
-  // =========================================================
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        // entries[0] - это наш div внизу списка
-        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
-          console.log('Observer triggered: loading more news...');
-          loadNews(false);
-        }
-      },
-      {
-        threshold: 0.1, // Срабатывает, когда хотя бы 10% якоря видно
-        rootMargin: '100px', // Начинаем грузить за 100px до появления якоря
-      }
-    );
-
-    if (observerTarget.current) {
-      observer.observe(observerTarget.current);
+  // Обработка конца скролла для Virtuoso
+  const handleEndReached = useCallback(() => {
+    console.log('endReached triggered', { loading, loadingMore: loadingMoreRef.current, hasMore: hasMoreRef.current });
+    if (!loading && !loadingMoreRef.current && hasMoreRef.current) {
+      loadNews(false);
     }
+  }, [loading, loadNews]);
 
-    return () => {
-      if (observerTarget.current) {
-        observer.unobserve(observerTarget.current);
-      }
-    };
-  }, [hasMore, loadingMore, loading, loadNews]);
+  // Скрытие/показ заголовка при скролле внутри Virtuoso
+  const handleScroll = useCallback((scrollTop: number) => {
+    // Показываем заголовок только когда в самом верху (< 50px)
+    if (scrollTop < 50) {
+      setShowHeader(true);
+    } else {
+      setShowHeader(false);
+    }
+  }, []);
 
-
-  // Рендер
   if (loading) {
     return <div className="text-center text-slate-500 mt-10 text-sm">Загрузка новостей...</div>;
   }
@@ -207,26 +204,38 @@ const NewsList: React.FC<NewsListProps> = ({ timeFilter, searchQuery, sourceType
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold">Новости</h2>
-      </div>
-
-      {news.map((item) => (
-        <NewsItemCard key={item.id} newsItem={item} />
-      ))}
-
-      {/* ЯКОРЬ ДЛЯ СКРОЛЛА */}
-      {/* Этот элемент невидим, но Observer следит за ним */}
-      <div ref={observerTarget} className="h-4 w-full" />
-
-      {loadingMore && (
-        <div className="text-center text-slate-500 py-4 text-sm">Загрузка еще новостей...</div>
+    <div className="min-w-0 max-w-[844px] mx-auto">
+      {showHeader && (
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-slate-900">Новости</h2>
+        </div>
       )}
-      
-      {!hasMore && news.length > 0 && (
-        <div className="text-center text-slate-400 py-6 text-xs">Вы посмотрели все новости</div>
-      )}
+
+      <Virtuoso
+        ref={virtuosoRef}
+        style={{ height: 'calc(100vh - 250px)' }}
+        data={news}
+        overscan={500}
+        onScroll={(e) => handleScroll((e.target as HTMLElement).scrollTop)}
+        itemContent={(_index, item) => (
+          <div className="mb-4">
+            <NewsItemCard key={item.id} newsItem={item} />
+          </div>
+        )}
+        endReached={handleEndReached}
+        components={{
+          Footer: () => (
+            <div className="py-6 text-center">
+              {loadingMore && (
+                <p className="text-slate-500 text-sm">Загрузка еще новостей...</p>
+              )}
+              {!hasMore && news.length > 0 && (
+                <p className="text-slate-400 text-xs">Вы посмотрели все новости</p>
+              )}
+            </div>
+          )
+        }}
+      />
     </div>
   );
 }
