@@ -7,3 +7,29 @@ body {
 #root {
   @apply min-h-screen;
 }
+
+/* Mobile styles */
+@media (max-width: 768px) {
+  #root {
+    @apply rounded-none h-screen;
+  }
+  
+  body {
+    @apply bg-[#F5F5F7];
+  }
+}
+
+/* Hide scrollbar for horizontal scrolling */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Safe area for mobile devices with notch */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+}
