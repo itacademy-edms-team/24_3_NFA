@@ -2,6 +2,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Svodka.Domain\Svodka.Domain.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
   </ItemGroup>
 
   <PropertyGroup>

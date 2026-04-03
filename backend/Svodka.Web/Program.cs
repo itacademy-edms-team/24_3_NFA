@@ -38,9 +38,10 @@ builder.Services.AddHttpClient<IRedditService, RedditService>(client =>
 // Репозитории и сервисы
 builder.Services.AddScoped<INewsItemRepository, NewsItemRepository>();
 builder.Services.AddScoped<INewsSourceRepository, NewsSourceRepository>();
-builder.Services.AddTransient<RssNewsProvider>();
-builder.Services.AddTransient<GitHubNewsProvider>();
-builder.Services.AddTransient<RedditNewsProvider>();
+builder.Services.AddScoped<Svodka.Application.Interfaces.ISourceService, Svodka.Application.Services.SourceService>();
+builder.Services.AddScoped<INewsProvider, RssNewsProvider>();
+builder.Services.AddScoped<INewsProvider, GitHubNewsProvider>();
+builder.Services.AddScoped<INewsProvider, RedditNewsProvider>();
 builder.Services.AddTransient<INewsProviderFactory, NewsProviderFactory>();
 builder.Services.AddSingleton<INewsAggregationJob, NewsAggregationJob>();
 builder.Services.AddHostedService<NewsAggregationBackgroundService>();
@@ -87,6 +88,7 @@ builder.Services
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
 var app = builder.Build();
