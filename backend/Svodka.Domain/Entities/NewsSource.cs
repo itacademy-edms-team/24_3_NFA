@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Text.Json.Serialization;
+using Svodka.Domain.Enums;
 
 namespace Svodka.Domain.Entities
 {
@@ -23,9 +24,9 @@ namespace Svodka.Domain.Entities
         public string Name { get; set; } = string.Empty;
 
         /// <summary>
-        /// Тип источника (например, "rss")
+        /// Тип источника
         /// </summary>
-        public string Type {  get; set; } = string.Empty;
+        public SourceType Type {  get; set; }
 
         /// <summary>
         /// Строка конфигурации в формате JSON

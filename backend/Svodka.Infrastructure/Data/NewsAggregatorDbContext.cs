@@ -53,6 +53,8 @@ namespace Svodka.Infrastructure.Data
 
             modelBuilder.Entity<NewsSource>(entity =>
             {
+                entity.Property(e => e.Type)
+                      .HasConversion<string>();
 
                 entity.HasIndex(e => e.IsActive)
                       .HasDatabaseName("IX_NewsSource_IsActive");
