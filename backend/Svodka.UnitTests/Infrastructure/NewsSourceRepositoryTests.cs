@@ -1,5 +1,6 @@
 using Xunit;
 using Svodka.Domain.Entities;
+using Svodka.Domain.Enums;
 using Svodka.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Svodka.Infrastructure.Data;
@@ -29,7 +30,7 @@ namespace Svodka.UnitTests.Infrastructure
             {
                 Id = 1,
                 Name = "Test Source",
-                Type = "rss",
+                Type = SourceType.Rss,
                 Configuration = "{\"url\":\"http://example.com\",\"limit\":10}",
                 IsActive = true
             };
@@ -52,7 +53,7 @@ namespace Svodka.UnitTests.Infrastructure
             {
                 Id = 1,
                 Name = "Test Source",
-                Type = "rss",
+                Type = SourceType.Rss,
                 Configuration = "{\"url\":\"http://example.com\",\"limit\":10}",
                 IsActive = true
             };
@@ -74,8 +75,8 @@ namespace Svodka.UnitTests.Infrastructure
             // Arrange
             var newsSources = new List<NewsSource>
             {
-                new NewsSource { Id = 1, Name = "Test Source 1", Type = "rss", Configuration = "{}", IsActive = true },
-                new NewsSource { Id = 2, Name = "Test Source 2", Type = "rss", Configuration = "{}", IsActive = true }
+                new NewsSource { Id = 1, Name = "Test Source 1", Type = SourceType.Rss, Configuration = "{}", IsActive = true },
+                new NewsSource { Id = 2, Name = "Test Source 2", Type = SourceType.Rss, Configuration = "{}", IsActive = true }
             };
 
             await _context.NewsSources.AddRangeAsync(newsSources);

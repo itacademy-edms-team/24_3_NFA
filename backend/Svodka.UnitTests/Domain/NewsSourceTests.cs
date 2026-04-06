@@ -1,5 +1,6 @@
 using Xunit;
 using Svodka.Domain.Entities;
+using Svodka.Domain.Enums;
 
 namespace Svodka.UnitTests.Domain
 {
@@ -11,7 +12,7 @@ namespace Svodka.UnitTests.Domain
             // Arrange
             var id = 1;
             var name = "Test RSS Source";
-            var type = "rss";
+            var type = SourceType.Rss;
             var configuration = "{\"url\":\"http://example.com/rss\",\"limit\":10}";
             var isActive = true;
             var lastPolledAtUtc = DateTime.UtcNow;

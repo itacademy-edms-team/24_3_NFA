@@ -1,5 +1,6 @@
 using Xunit;
 using Svodka.Domain.Entities;
+using Svodka.Domain.Enums;
 using Svodka.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Svodka.Infrastructure.Data;
