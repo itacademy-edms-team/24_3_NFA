@@ -1,9 +1,11 @@
+using Svodka.Domain.Interfaces;
+
 namespace Svodka.Domain.Models
 {
     /// <summary>
     /// Конфигурация Reddit-источника
     /// </summary>
-    public class RedditSourceConfiguration
+    public class RedditSourceConfiguration : ISourceConfiguration
     {
         /// <summary>
         /// Название сабреддита (без префикса r/)

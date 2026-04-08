@@ -1,9 +1,11 @@
+using Svodka.Domain.Interfaces;
+
 namespace Svodka.Domain.Models
 {
     /// <summary>
     /// Конфигурация GitHub-источника
     /// </summary>
-    public class GitHubSourceConfiguration
+    public class GitHubSourceConfiguration : ISourceConfiguration
     {
         /// <summary>
         /// Владелец репозитория (username или organization)
@@ -29,6 +31,10 @@ namespace Svodka.Domain.Models
         /// Лимит событий для получения
         /// </summary>
         public int Limit { get; set; } = 10;
+
+        /// <summary>
+        /// Категория источника (необязательное поле)
+        /// </summary>
+        public string? Category { get; set; }
     }
 }
-

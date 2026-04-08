@@ -1,17 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Text.Json.Serialization;
+using Svodka.Domain.Interfaces;
 
 namespace Svodka.Domain.Models
 {
     /// <summary>
     /// Конфигурация RSS-источника
     /// </summary>
-    using System.Text.Json.Serialization;
-
-    public class RssSourceConfiguration
+    public class RssSourceConfiguration : ISourceConfiguration
     {
         /// <summary>
         /// URL RSS-ленты
@@ -31,5 +26,4 @@ namespace Svodka.Domain.Models
         [JsonPropertyName("category")]
         public string? Category { get; set; }
     }
-
 }
