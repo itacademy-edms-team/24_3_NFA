@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Svodka.Domain.Entities;
+using Svodka.Domain.Enums;
 using Svodka.Domain.Interfaces;
 using Svodka.Domain.Models;
 using Svodka.Infrastructure.Services;
@@ -23,6 +25,8 @@ namespace Svodka.Infrastructure.Providers
             _gitHubService = gitHubService;
             _logger = logger;
         }
+
+        public SourceType Type => SourceType.GitHub;
 
         public async Task<IEnumerable<NewsItem>> GetNewsAsync(object configuration)
         {
@@ -52,6 +56,37 @@ namespace Svodka.Infrastructure.Providers
                 throw;
             }
         }
+
+        public string ValidateAndNormalize(JsonElement json)
+        {
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var githubConfig = JsonSerializer.Deserialize<GitHubSourceConfiguration>(json.GetRawText(), options);
+
+            if (githubConfig == null || string.IsNullOrWhiteSpace(githubConfig.RepositoryOwner) ||
+                string.IsNullOrWhiteSpace(githubConfig.RepositoryName))
+            {
+                throw new ArgumentException("GitHub configuration must include RepositoryOwner and RepositoryName.");
+            }
+
+            return JsonSerializer.Serialize(githubConfig);
+        }
+
+        public object DeserializeConfiguration(string json, int defaultLimit)
+        {
+            var config = JsonSerializer.Deserialize<GitHubSourceConfiguration>(json)
+                ?? throw new ArgumentException("Failed to deserialize GitHub configuration.");
+
+            if (config.Limit == 0)
+            {
+                config.Limit = defaultLimit;
+            }
+            return config;
+        }
+
+        public string? GetCategory(string json)
+        {
+            var config = JsonSerializer.Deserialize<GitHubSourceConfiguration>(json);
+            return config?.Category ?? "GitHub";
+        }
     }
 }
-
