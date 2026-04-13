@@ -92,14 +92,7 @@ namespace Svodka.Infrastructure.Services
 
             if (gitHubEvent.Payload != null)
             {
-                if (gitHubEvent.Type == "PushEvent" && gitHubEvent.Payload.Commits != null && gitHubEvent.Payload.Commits.Any())
-                {
-                    var firstCommit = gitHubEvent.Payload.Commits.First();
-                    sha = firstCommit.Sha;
-                    link = $"https://github.com/{owner}/{repo}/commit/{sha}";
-                    description = firstCommit.Message + "\n\n" + description;
-                }
-                else if (gitHubEvent.Type == "IssuesEvent" && gitHubEvent.Payload.Issue != null)
+                if (gitHubEvent.Type == "IssuesEvent" && gitHubEvent.Payload.Issue != null)
                 {
                     link = gitHubEvent.Payload.Issue.HtmlUrl ?? link;
                 }
@@ -158,7 +151,7 @@ namespace Svodka.Infrastructure.Services
 
             return gitHubEvent.Type switch
             {
-                "PushEvent" => $"{actor} pushed {gitHubEvent.Payload?.Commits?.Count ?? 0} commit(s) to {repo}",
+                "PushEvent" => $"{actor} pushed to {repo}",
                 "IssuesEvent" => gitHubEvent.Payload?.Issue?.Body ?? $"Issue event in {repo}",
                 "PullRequestEvent" => gitHubEvent.Payload?.PullRequest?.Body ?? $"Pull request event in {repo}",
                 "CreateEvent" => $"{actor} created {gitHubEvent.Payload?.RefType ?? "resource"} in {repo}",
@@ -171,73 +164,76 @@ namespace Svodka.Infrastructure.Services
 
         private class GitHubEvent
         {
+            [JsonPropertyName("id")]
             public string Id { get; set; } = string.Empty;
+            [JsonPropertyName("type")]
             public string Type { get; set; } = string.Empty;
-            public string CreatedAtRaw { get; set; } = string.Empty;
+            [JsonPropertyName("created_at")]
+            public DateTime CreatedAt { get; set; }
             
-            [JsonIgnore]
-            public DateTime CreatedAt 
-            {
-                get
-                {
-                    if (DateTime.TryParse(CreatedAtRaw, out var result))
-                    {
-                        return result;
-                    }
-                    return DateTime.UtcNow;
-                }
-            }
-            
+            [JsonPropertyName("actor")]
             public GitHubActor? Actor { get; set; }
+            [JsonPropertyName("repo")]
             public GitHubRepo? Repo { get; set; }
+            [JsonPropertyName("payload")]
             public GitHubPayload? Payload { get; set; }
         }
 
         private class GitHubActor
         {
+            [JsonPropertyName("login")]
             public string Login { get; set; } = string.Empty;
+            [JsonPropertyName("avatar_url")]
             public string? AvatarUrl { get; set; }
         }
 
         private class GitHubRepo
         {
+            [JsonPropertyName("name")]
             public string Name { get; set; } = string.Empty;
         }
 
         private class GitHubPayload
         {
-            public List<GitHubCommit>? Commits { get; set; }
+            [JsonPropertyName("issue")]
             public GitHubIssue? Issue { get; set; }
+            [JsonPropertyName("pull_request")]
             public GitHubPullRequest? PullRequest { get; set; }
+            [JsonPropertyName("ref_type")]
             public string? RefType { get; set; }
+            [JsonPropertyName("release")]
             public GitHubRelease? Release { get; set; }
-        }
-
-        private class GitHubCommit
-        {
-            public string Sha { get; set; } = string.Empty;
-            public string Message { get; set; } = string.Empty;
         }
 
         private class GitHubIssue
         {
+            [JsonPropertyName("title")]
             public string Title { get; set; } = string.Empty;
+            [JsonPropertyName("body")]
             public string? Body { get; set; }
+            [JsonPropertyName("html_url")]
             public string? HtmlUrl { get; set; }
         }
 
         private class GitHubPullRequest
         {
+            [JsonPropertyName("title")]
             public string Title { get; set; } = string.Empty;
+            [JsonPropertyName("body")]
             public string? Body { get; set; }
+            [JsonPropertyName("html_url")]
             public string? HtmlUrl { get; set; }
+            [JsonPropertyName("number")]
             public int Number { get; set; }
         }
 
         private class GitHubRelease
         {
+            [JsonPropertyName("name")]
             public string Name { get; set; } = string.Empty;
+            [JsonPropertyName("body")]
             public string? Body { get; set; }
+            [JsonPropertyName("html_url")]
             public string? HtmlUrl { get; set; }
         }
     }

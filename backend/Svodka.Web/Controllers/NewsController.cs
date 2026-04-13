@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Svodka.Domain.Entities;
+using Svodka.Domain.Enums;
 using Svodka.Domain.Interfaces;
 
 namespace Svodka.Web.Controllers
@@ -61,10 +62,16 @@ namespace Svodka.Web.Controllers
             var sourcesList = sources?.ToList();
             var categoriesList = categories?.ToList();
 
-            var news = await _newsItemRepository.GetLatestNewsAsync(limit, q, fromDateUtc, sourcesList, categoriesList, offset, sourceType);
+            SourceType? st = null;
+            if (!string.IsNullOrWhiteSpace(sourceType) && Enum.TryParse<SourceType>(sourceType, true, out var parsedType))
+            {
+                st = parsedType;
+            }
+
+            var news = await _newsItemRepository.GetLatestNewsAsync(limit, q, fromDateUtc, sourcesList, categoriesList, offset, st);
             bool hasMore = news.Count() == limit;
 
-            return Ok(new{items = news,hasMore = hasMore,offset = offset,limit = limit});
+            return Ok(new { items = news, hasMore = hasMore, offset = offset, limit = limit });
         }
     }
 }

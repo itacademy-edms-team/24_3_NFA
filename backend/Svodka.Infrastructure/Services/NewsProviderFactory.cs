@@ -1,57 +1,40 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Svodka.Domain.Enums;
 using Svodka.Domain.Interfaces;
-using Svodka.Infrastructure.Providers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Svodka.Infrastructure.Services
 {
     /// <summary>
-    /// Фабрика для получения экземпляров INewsProvider по типу провайдера
+    /// Фабрика для получения экземпляров INewsProvider на основе зарегистрированных провайдеров
     /// </summary>
     public class NewsProviderFactory : INewsProviderFactory
     {
-        private readonly IServiceProvider _serviceProvider;
+        private readonly Dictionary<SourceType, INewsProvider> _providers;
 
         /// <summary>
         /// Конструктор фабрики провайдеров новостей
         /// </summary>
-        /// <param name="serviceProvider">Поставщик сервисов</param>
-        public NewsProviderFactory(IServiceProvider serviceProvider)
+        /// <param name="providers">Список всех зарегистрированных провайдеров</param>
+        public NewsProviderFactory(IEnumerable<INewsProvider> providers)
         {
-            _serviceProvider = serviceProvider;
+            _providers = providers.ToDictionary(p => p.Type);
         }
 
         /// <summary>
         /// Возвращает провайдер (поставщик) новостей для указанного типа
         /// </summary>
-        /// <param name="providerType">Тип провайдера (например, "rss")</param>
+        /// <param name="sourceType">Тип источника</param>
         /// <returns>Экземпляр INewsProvider</returns>
-        public INewsProvider GetProvider(string providerType)
+        public INewsProvider GetProvider(SourceType sourceType)
         {
-            switch (providerType.ToLower())
+            if (_providers.TryGetValue(sourceType, out var provider))
             {
-                case "rss":
-                {
-                    return _serviceProvider.GetRequiredService<RssNewsProvider>();
-                }
-                case "github":
-                {
-                    return _serviceProvider.GetRequiredService<GitHubNewsProvider>();
-                }
-                case "reddit":
-                {
-                    return _serviceProvider.GetRequiredService<RedditNewsProvider>();
-                }
-                default:
-                {
-                    throw new ArgumentException($"Неизвестный тип провайдера: {providerType}", nameof(providerType));
-                }
+                return provider;
             }
 
+            throw new ArgumentException($"Неизвестный тип провайдера: {sourceType}", nameof(sourceType));
         }
     }
 }

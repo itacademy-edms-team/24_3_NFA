@@ -1,5 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Svodka.Domain.Entities;
+using Svodka.Domain.Enums;
 using Svodka.Domain.Interfaces;
 using Svodka.Infrastructure.Data;
 
@@ -76,14 +77,14 @@ namespace Svodka.Infrastructure.Services
             List<int>? sourceIds = null,
             List<string>? categories = null,
             int offset = 0,
-            string? sourceType = null)
+            SourceType? sourceType = null)
         {
             IQueryable<NewsItem> query = _context.NewsItems;
 
             // Фильтрация по типу источника
-            if (!string.IsNullOrWhiteSpace(sourceType))
+            if (sourceType.HasValue)
             {
-                query = query.Where(n => n.NewsSource != null && n.NewsSource.Type.ToLower() == sourceType.ToLower());
+                query = query.Where(n => n.NewsSource != null && n.NewsSource.Type == sourceType.Value);
             }
 
             // Фильтрация по поисковому запросу

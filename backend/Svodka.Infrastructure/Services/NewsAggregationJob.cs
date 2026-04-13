@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Svodka.Domain.Entities;
+using Svodka.Domain.Enums;
 using Svodka.Domain.Interfaces;
 using Svodka.Domain.Models;
 using Svodka.Infrastructure.Data;
@@ -88,47 +89,8 @@ namespace Svodka.Infrastructure.Services
                 {
                     _logger.LogDebug("Обработка источника: {SourceName} (ID: {SourceId}, Type: {SourceType})", source.Name, source.Id, source.Type);
 
-                    object? configObject = null;
-                    var sourceType = source.Type.ToLower();
-
-                    switch (sourceType)
-                    {
-                        case "rss":
-                            configObject = JsonSerializer.Deserialize<RssSourceConfiguration>(source.Configuration);
-                            if (configObject is RssSourceConfiguration rssConfig && rssConfig.Limit == 0)
-                            {
-                                rssConfig.Limit = _options.NewsLimitPerSource;
-                            }
-                            break;
-
-                        case "github":
-                            configObject = JsonSerializer.Deserialize<GitHubSourceConfiguration>(source.Configuration);
-                            if (configObject is GitHubSourceConfiguration githubConfig && githubConfig.Limit == 0)
-                            {
-                                githubConfig.Limit = _options.NewsLimitPerSource;
-                            }
-                            break;
-
-                        case "reddit":
-                            configObject = JsonSerializer.Deserialize<RedditSourceConfiguration>(source.Configuration);
-                            if (configObject is RedditSourceConfiguration redditConfig && redditConfig.Limit == 0)
-                            {
-                                redditConfig.Limit = _options.NewsLimitPerSource;
-                            }
-                            break;
-
-                        default:
-                            _logger.LogWarning("Неизвестный тип источника: {SourceType} для ID {SourceId}", source.Type, source.Id);
-                            continue;
-                    }
-
-                    if (configObject == null)
-                    {
-                        _logger.LogWarning("Не удалось десериализовать конфигурацию источника {SourceId}", source.Id);
-                        continue;
-                    }
-
                     var provider = providerFactory.GetProvider(source.Type);
+                    var configObject = provider.DeserializeConfiguration(source.Configuration, _options.NewsLimitPerSource);
 
                     var newsItems = await provider.GetNewsAsync(configObject);
 

@@ -2,6 +2,7 @@ using Xunit;
 using Moq;
 using Svodka.Domain.Interfaces;
 using Svodka.Domain.Entities;
+using Svodka.Domain.Enums;
 using Svodka.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -76,7 +77,7 @@ namespace Svodka.UnitTests.Services
             {
                 Id = sourceId,
                 Name = "Test Source",
-                Type = "rss",
+                Type = SourceType.Rss,
                 Configuration = "{\"url\":\"http://example.com\",\"limit\":10}",
                 IsActive = true
             };
@@ -107,12 +108,12 @@ namespace Svodka.UnitTests.Services
             // Arrange
             var sources = new List<NewsSource>
             {
-                new NewsSource { Id = 1, Name = "Test Source 1", Type = "rss", Configuration = "{\"url\":\"http://example.com\",\"limit\":10}", IsActive = true },
-                new NewsSource { Id = 2, Name = "Test Source 2", Type = "rss", Configuration = "{\"url\":\"http://example.com\",\"limit\":10}", IsActive = true }
+                new NewsSource { Id = 1, Name = "Test Source 1", Type = SourceType.Rss, Configuration = "{\"url\":\"http://example.com\",\"limit\":10}", IsActive = true },
+                new NewsSource { Id = 2, Name = "Test Source 2", Type = SourceType.Rss, Configuration = "{\"url\":\"http://example.com\",\"limit\":10}", IsActive = true }
             };
 
             _mockSourceRepository.Setup(r => r.GetActiveNewsSourcesAsync()).ReturnsAsync(sources);
-            _mockProviderFactory.Setup(f => f.GetProvider(It.IsAny<string>())).Returns(Mock.Of<INewsProvider>());
+            _mockProviderFactory.Setup(f => f.GetProvider(It.IsAny<SourceType>())).Returns(Mock.Of<INewsProvider>());
             _mockItemRepository.Setup(r => r.SaveNewsAsync(It.IsAny<IEnumerable<NewsItem>>())).Returns(Task.CompletedTask);
             _mockSourceRepository.Setup(r => r.UpdateLastPolledAtAsync(It.IsAny<int>(), It.IsAny<DateTime>())).Returns(Task.CompletedTask);
 
