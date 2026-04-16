@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Svodka.Application.DTOs;
 using Svodka.Application.Interfaces;
 using Svodka.Domain.Entities;
+using System.Security.Claims;
 using System.Threading;
 
 namespace Svodka.Web.Controllers
@@ -11,10 +13,13 @@ namespace Svodka.Web.Controllers
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class SourcesController : ControllerBase
     {
         private readonly ISourceService _sourceService;
         private readonly ILogger<SourcesController> _logger;
+
+        private int GetUserId() => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
         /// <summary>
         /// Конструктор контроллера SourcesController
@@ -46,7 +51,7 @@ namespace Svodka.Web.Controllers
 
             try
             {
-                var newsSource = await _sourceService.CreateSourceAsync(request, cancellationToken);
+                var newsSource = await _sourceService.CreateSourceAsync(GetUserId(), request, cancellationToken);
                 return CreatedAtAction(nameof(GetSourceById),
                     new { id = newsSource.Id },
                     new { id = newsSource.Id, name = newsSource.Name });
@@ -88,7 +93,7 @@ namespace Svodka.Web.Controllers
 
             try
             {
-                var updatedSource = await _sourceService.UpdateSourceAsync(id, request, cancellationToken);
+                var updatedSource = await _sourceService.UpdateSourceAsync(id, GetUserId(), request, cancellationToken);
                 if (updatedSource == null) return NotFound();
 
                 return Ok(updatedSource);
@@ -114,7 +119,7 @@ namespace Svodka.Web.Controllers
         }
 
         /// <summary>
-        /// Удаляет источник новостей по идентификатору с каскадным удалением новостей
+        /// Удаляет источник новостей по идентификатору
         /// </summary>
         /// <param name="id">Идентификатор источника</param>
         /// <returns>Результат удаления источника</returns>
@@ -123,7 +128,7 @@ namespace Svodka.Web.Controllers
         {
             try
             {
-                var deleted = await _sourceService.DeleteSourceAsync(id);
+                var deleted = await _sourceService.DeleteSourceAsync(id, GetUserId());
                 if (!deleted) return NotFound();
 
                 return Ok(new { message = "Источник успешно удален" });
@@ -147,7 +152,7 @@ namespace Svodka.Web.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetSourceById(int id)
         {
-            var source = await _sourceService.GetSourceByIdAsync(id);
+            var source = await _sourceService.GetSourceByIdAndUserIdAsync(id, GetUserId());
             if (source == null) return NotFound();
             return Ok(source);
         }
@@ -159,18 +164,18 @@ namespace Svodka.Web.Controllers
         [HttpGet]
         public async Task<IActionResult> GetSources()
         {
-            var sources = await _sourceService.GetAllSourcesAsync();
+            var sources = await _sourceService.GetAllSourcesByUserIdAsync(GetUserId());
             return Ok(sources);
         }
 
         /// <summary>
-        /// Получает опции фильтрации (источники и категории) для построения фильтра
+        /// Получает опции фильтрации для построения фильтра
         /// </summary>
         /// <returns>Опции фильтрации</returns>
         [HttpGet("filter-options")]
         public async Task<IActionResult> GetFilterOptions()
         {
-            var filterOptions = await _sourceService.GetFilterOptionsAsync();
+            var filterOptions = await _sourceService.GetFilterOptionsAsync(GetUserId());
             return Ok(filterOptions);
         }
     }

@@ -28,12 +28,25 @@ namespace Svodka.Infrastructure.Data
         public DbSet<NewsSource> NewsSources { get; set; }
 
         /// <summary>
+        /// Набор сущностей пользователей
+        /// </summary>
+        public DbSet<User> Users { get; set; }
+
+        /// <summary>
         /// Настройка модели базы данных при создании
         /// </summary>
         /// <param name="modelBuilder">Построитель моделей</param>
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<User>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.Email).IsUnique();
+                entity.Property(e => e.Email).IsRequired().HasMaxLength(256);
+                entity.Property(e => e.PasswordHash).IsRequired();
+            });
 
             modelBuilder.Entity<NewsItem>(entity =>
             {
@@ -58,6 +71,12 @@ namespace Svodka.Infrastructure.Data
 
                 entity.HasIndex(e => e.IsActive)
                       .HasDatabaseName("IX_NewsSource_IsActive");
+
+                entity.HasOne(d => d.User)
+                      .WithMany(p => p.NewsSources)
+                      .HasForeignKey(d => d.UserId)
+                      .OnDelete(DeleteBehavior.Cascade)
+                      .HasConstraintName("FK_NewsSource_User_UserId");
             });
         }
     }

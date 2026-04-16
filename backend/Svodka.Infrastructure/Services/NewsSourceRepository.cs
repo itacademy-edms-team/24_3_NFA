@@ -43,22 +43,50 @@ namespace Svodka.Infrastructure.Services
         }
 
         /// <summary>
-        /// Получает все источники новостей
+        /// Получает все активные источники новостей пользователя
         /// </summary>
-        /// <returns>Коллекция всех источников</returns>
-        public async Task<IEnumerable<NewsSource>> GetAllSourcesAsync()
+        /// <param name="userId">Идентификатор пользователя</param>
+        /// <returns>Коллекция активных источников пользователя</returns>
+        public async Task<IEnumerable<NewsSource>> GetActiveNewsSourcesByUserIdAsync(int userId)
         {
-            return await _context.NewsSources.ToListAsync();
+            return await _context.NewsSources
+                                  .Where(ns => ns.IsActive && ns.UserId == userId)
+                                  .ToListAsync();
         }
 
         /// <summary>
-        /// Удаляет источник новостей по его идентификатору
+        /// Получает источник новостей по идентификатору и пользователю
         /// </summary>
-        /// <param name="id">Идентификатор источника для удаления</param>
-        /// <returns>Флаг успешности удаления</returns>
-        public async Task<bool> DeleteNewsSourceAsync(int id)
+        /// <param name="id">Идентификатор источника</param>
+        /// <param name="userId">Идентификатор пользователя</param>
+        /// <returns>Источник новостей или null, если не найден</returns>
+        public async Task<NewsSource?> GetByIdAndUserIdAsync(int id, int userId)
         {
-            var source = await _context.NewsSources.FindAsync(id);
+            return await _context.NewsSources
+                                  .FirstOrDefaultAsync(ns => ns.Id == id && ns.UserId == userId);
+        }
+
+        /// <summary>
+        /// Получает все источники новостей пользователя
+        /// </summary>
+        /// <param name="userId">Идентификатор пользователя</param>
+        /// <returns>Коллекция всех источников пользователя</returns>
+        public async Task<IEnumerable<NewsSource>> GetAllSourcesByUserIdAsync(int userId)
+        {
+            return await _context.NewsSources
+                                  .Where(ns => ns.UserId == userId)
+                                  .ToListAsync();
+        }
+
+        /// <summary>
+        /// Удаляет источник новостей по его идентификатору и пользователю
+        /// </summary>
+        /// <param name="id">Идентификатор источника</param>
+        /// <param name="userId">Идентификатор пользователя</param>
+        /// <returns>Флаг успешности удаления</returns>
+        public async Task<bool> DeleteNewsSourceAsync(int id, int userId)
+        {
+            var source = await GetByIdAndUserIdAsync(id, userId);
             if (source == null) return false;
 
             _context.NewsSources.Remove(source);

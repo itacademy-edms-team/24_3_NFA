@@ -28,17 +28,17 @@ namespace Svodka.Application.Services
             _logger = logger;
         }
 
-        public async Task<IEnumerable<NewsSource>> GetAllSourcesAsync()
+        public async Task<IEnumerable<NewsSource>> GetAllSourcesByUserIdAsync(int userId)
         {
-            return await _newsSourceRepository.GetAllSourcesAsync();
+            return await _newsSourceRepository.GetAllSourcesByUserIdAsync(userId);
         }
 
-        public async Task<NewsSource?> GetSourceByIdAsync(int id)
+        public async Task<NewsSource?> GetSourceByIdAndUserIdAsync(int id, int userId)
         {
-            return await _newsSourceRepository.GetByIdAsync(id);
+            return await _newsSourceRepository.GetByIdAndUserIdAsync(id, userId);
         }
 
-        public async Task<NewsSource> CreateSourceAsync(SourceDto dto, CancellationToken ct)
+        public async Task<NewsSource> CreateSourceAsync(int userId, SourceDto dto, CancellationToken ct)
         {
             var configurationJson = ValidateAndNormalizeConfiguration(dto);
 
@@ -47,7 +47,8 @@ namespace Svodka.Application.Services
                 Name = dto.Name,
                 Type = dto.Type,
                 Configuration = configurationJson,
-                IsActive = dto.IsActive
+                IsActive = dto.IsActive,
+                UserId = userId
             };
 
             await _newsSourceRepository.AddNewsSourceAsync(newsSource);
@@ -65,9 +66,9 @@ namespace Svodka.Application.Services
             return newsSource;
         }
 
-        public async Task<NewsSource?> UpdateSourceAsync(int id, SourceDto dto, CancellationToken ct)
+        public async Task<NewsSource?> UpdateSourceAsync(int id, int userId, SourceDto dto, CancellationToken ct)
         {
-            var existingSource = await _newsSourceRepository.GetByIdAsync(id);
+            var existingSource = await _newsSourceRepository.GetByIdAndUserIdAsync(id, userId);
             if (existingSource == null) return null;
 
             var configurationJson = ValidateAndNormalizeConfiguration(dto);
@@ -91,9 +92,9 @@ namespace Svodka.Application.Services
             return existingSource;
         }
 
-        public async Task<bool> DeleteSourceAsync(int id)
+        public async Task<bool> DeleteSourceAsync(int id, int userId)
         {
-            var deleted = await _newsSourceRepository.DeleteNewsSourceAsync(id);
+            var deleted = await _newsSourceRepository.DeleteNewsSourceAsync(id, userId);
             if (deleted)
             {
                 await _newsSourceRepository.SaveChangesAsync();
@@ -101,9 +102,9 @@ namespace Svodka.Application.Services
             return deleted;
         }
 
-        public async Task<object> GetFilterOptionsAsync()
+        public async Task<object> GetFilterOptionsAsync(int userId)
         {
-            var sources = await _newsSourceRepository.GetAllSourcesAsync();
+            var sources = await _newsSourceRepository.GetAllSourcesByUserIdAsync(userId);
             var categories = new List<string>();
 
             foreach (var source in sources)

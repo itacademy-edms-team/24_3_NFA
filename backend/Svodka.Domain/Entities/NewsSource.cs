@@ -54,6 +54,17 @@ namespace Svodka.Domain.Entities
         public string? LastError { get; set; }
 
         /// <summary>
+        /// Идентификатор пользователя-владельца
+        /// </summary>
+        public int UserId { get; set; }
+
+        /// <summary>
+        /// Пользователь-владелец источника
+        /// </summary>
+        [JsonIgnore]
+        public virtual User User { get; set; } = null!;
+
+        /// <summary>
         /// Коллекция новостей, полученных из этого источника
         /// </summary>
         [JsonIgnore]
