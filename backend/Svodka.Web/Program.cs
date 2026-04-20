@@ -7,7 +7,36 @@ using Svodka.Infrastructure.Services;
 using Svodka.Infrastructure.Data;
 using Svodka.Infrastructure.Providers;
 
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using Svodka.Application.Interfaces;
+using Svodka.Application.Services;
+using Svodka.Infrastructure.Services;
+
 var builder = WebApplication.CreateBuilder(args);
+
+// JWT Auth Configuration
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+var key = Encoding.ASCII.GetBytes(jwtSettings["Key"] ?? "SUPER_SECRET_KEY_SVODKA_2024_PROEKT");
+
+builder.Services.AddAuthentication(x =>
+{
+    x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    x.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(x =>
+{
+    x.RequireHttpsMetadata = false;
+    x.SaveToken = true;
+    x.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidateIssuer = false,
+        ValidateAudience = false
+    };
+});
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
                        ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
@@ -39,6 +68,7 @@ builder.Services.AddHttpClient<IRedditService, RedditService>(client =>
 builder.Services.AddScoped<INewsItemRepository, NewsItemRepository>();
 builder.Services.AddScoped<INewsSourceRepository, NewsSourceRepository>();
 builder.Services.AddScoped<Svodka.Application.Interfaces.ISourceService, Svodka.Application.Services.SourceService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<INewsProvider, RssNewsProvider>();
 builder.Services.AddScoped<INewsProvider, GitHubNewsProvider>();
 builder.Services.AddScoped<INewsProvider, RedditNewsProvider>();
@@ -114,9 +144,12 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 
+app.UseMiddleware<Svodka.Web.Middleware.ErrorHandlingMiddleware>();
+
 app.UseRouting();
 
-// app.UseAuthorization();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 
