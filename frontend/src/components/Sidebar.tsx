@@ -6,7 +6,7 @@ import {
   FaRss,
   FaHeart,
   FaBars,
-  FaCog,
+  FaUser,
   FaEllipsisV,
 } from 'react-icons/fa';
 import { SOURCES_CHANGED_EVENT } from '../services/newsService';
@@ -51,9 +51,19 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [kebabMenuOpen, setKebabMenuOpen] = useState<number | null>(null);
   const [rssMenuOpen, setRssMenuOpen] = useState(false);
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+  };
+
   const loadRssSources = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:5043/api/sources');
+      const response = await fetch('http://localhost:5043/api/sources', {
+        headers: getAuthHeaders()
+      });
       if (response.ok) {
         const sources: Source[] = await response.json();
         setRssSources(sources.filter(s => s.type.toLowerCase() === 'rss'));
@@ -228,16 +238,16 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       <div className="p-3 border-t border-slate-200">
         <button
-          onClick={() => navigate('/sources')}
+          onClick={() => navigate('/profile')}
           className="flex items-center w-full p-2 text-sm font-medium text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
         >
-          <FaCog className="text-lg text-slate-500" />
+          <FaUser className="text-lg text-slate-500" />
           <span
             className={`ml-3 whitespace-nowrap transition-all duration-200 ${
               collapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'
             }`}
           >
-            Настройки
+            Профиль
           </span>
         </button>
       </div>

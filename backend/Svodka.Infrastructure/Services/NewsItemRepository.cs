@@ -102,8 +102,14 @@ namespace Svodka.Infrastructure.Services
             }
 
             // Фильтрация по источникам
-            if (sourceIds != null && sourceIds.Any())
+            if (sourceIds != null)
             {
+                if (!sourceIds.Any())
+                {
+                    // Если список источников пуст (например, у пользователя нет источников),
+                    // возвращаем пустой результат не выполняя запрос к базе
+                    return new List<NewsItem>();
+                }
                 query = query.Where(n => sourceIds.Contains(n.SourceId));
             }
 

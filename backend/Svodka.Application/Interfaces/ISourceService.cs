@@ -9,46 +9,52 @@ namespace Svodka.Application.Interfaces
     public interface ISourceService
     {
         /// <summary>
-        /// Получает все источники новостей
+        /// Получает все источники новостей пользователя
         /// </summary>
+        /// <param name="userId">Идентификатор пользователя</param>
         /// <returns>Список источников</returns>
-        Task<IEnumerable<NewsSource>> GetAllSourcesAsync();
+        Task<IEnumerable<NewsSource>> GetAllSourcesByUserIdAsync(int userId);
 
         /// <summary>
-        /// Получает источник по идентификатору
+        /// Получает источник по идентификатору и пользователю
         /// </summary>
         /// <param name="id">Идентификатор источника</param>
+        /// <param name="userId">Идентификатор пользователя</param>
         /// <returns>Источник или null</returns>
-        Task<NewsSource?> GetSourceByIdAsync(int id);
+        Task<NewsSource?> GetSourceByIdAndUserIdAsync(int id, int userId);
 
         /// <summary>
-        /// Создает новый источник
+        /// Создает новый источник для пользователя
         /// </summary>
+        /// <param name="userId">Идентификатор пользователя</param>
         /// <param name="dto">Данные для создания</param>
         /// <param name="ct">Токен отмены</param>
         /// <returns>Созданный источник</returns>
-        Task<NewsSource> CreateSourceAsync(SourceDto dto, CancellationToken ct);
+        Task<NewsSource> CreateSourceAsync(int userId, SourceDto dto, CancellationToken ct);
 
         /// <summary>
         /// Обновляет существующий источник
         /// </summary>
         /// <param name="id">Идентификатор источника</param>
+        /// <param name="userId">Идентификатор пользователя</param>
         /// <param name="dto">Обновленные данные</param>
         /// <param name="ct">Токен отмены</param>
         /// <returns>Обновленный источник или null</returns>
-        Task<NewsSource?> UpdateSourceAsync(int id, SourceDto dto, CancellationToken ct);
+        Task<NewsSource?> UpdateSourceAsync(int id, int userId, SourceDto dto, CancellationToken ct);
 
         /// <summary>
         /// Удаляет источник
         /// </summary>
         /// <param name="id">Идентификатор источника</param>
+        /// <param name="userId">Идентификатор пользователя</param>
         /// <returns>Результат удаления</returns>
-        Task<bool> DeleteSourceAsync(int id);
+        Task<bool> DeleteSourceAsync(int id, int userId);
 
         /// <summary>
-        /// Получает опции фильтрации
+        /// Получает опции фильтрации для пользователя
         /// </summary>
+        /// <param name="userId">Идентификатор пользователя</param>
         /// <returns>Объект с опциями фильтрации</returns>
-        Task<object> GetFilterOptionsAsync();
+        Task<object> GetFilterOptionsAsync(int userId);
     }
 }

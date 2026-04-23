@@ -20,13 +20,6 @@ namespace Svodka.Domain.Interfaces
         Task AddNewsSourceAsync(NewsSource source);
 
         /// <summary>
-        /// Удаляет источник новостей по его идентификатору
-        /// </summary>
-        /// <param name="id">Идентификатор источника для удаления</param>
-        /// <returns>Флаг успешности удаления</returns>
-        Task<bool> DeleteNewsSourceAsync(int id);
-
-        /// <summary>
         /// Получает все активные источники новостей
         /// </summary>
         /// <returns>Коллекция активных источников</returns>
@@ -40,10 +33,34 @@ namespace Svodka.Domain.Interfaces
         Task<NewsSource?> GetByIdAsync(int id);
 
         /// <summary>
-        /// Получает все источники новостей
+        /// Удаляет источник новостей по его идентификатору и пользователю
         /// </summary>
-        /// <returns>Коллекция всех источников</returns>
-        Task<IEnumerable<NewsSource>> GetAllSourcesAsync();
+        /// <param name="id">Идентификатор источника</param>
+        /// <param name="userId">Идентификатор пользователя</param>
+        /// <returns>Флаг успешности удаления</returns>
+        Task<bool> DeleteNewsSourceAsync(int id, int userId);
+
+        /// <summary>
+        /// Получает все активные источники новостей пользователя
+        /// </summary>
+        /// <param name="userId">Идентификатор пользователя</param>
+        /// <returns>Коллекция активных источников пользователя</returns>
+        Task<IEnumerable<NewsSource>> GetActiveNewsSourcesByUserIdAsync(int userId);
+
+        /// <summary>
+        /// Получает источник новостей по идентификатору и пользователю
+        /// </summary>
+        /// <param name="id">Идентификатор источника</param>
+        /// <param name="userId">Идентификатор пользователя</param>
+        /// <returns>Источник новостей или null, если не найден</returns>
+        Task<NewsSource?> GetByIdAndUserIdAsync(int id, int userId);
+
+        /// <summary>
+        /// Получает все источники новостей пользователя
+        /// </summary>
+        /// <param name="userId">Идентификатор пользователя</param>
+        /// <returns>Коллекция всех источников пользователя</returns>
+        Task<IEnumerable<NewsSource>> GetAllSourcesByUserIdAsync(int userId);
 
         /// <summary>
         /// Обновляет время последнего опроса для источника

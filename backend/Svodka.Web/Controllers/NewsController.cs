@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Svodka.Domain.Entities;
 using Svodka.Domain.Enums;
 using Svodka.Domain.Interfaces;
+using System.Security.Claims;
 
 namespace Svodka.Web.Controllers
 {
@@ -11,18 +13,24 @@ namespace Svodka.Web.Controllers
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class NewsController : ControllerBase
     {
         private readonly INewsItemRepository _newsItemRepository;
+        private readonly INewsSourceRepository _newsSourceRepository;
 
         /// <summary>
         /// Конструктор контроллера NewsController
         /// </summary>
         /// <param name="newsItemRepository">Репозиторий новостей</param>
-        public NewsController(INewsItemRepository newsItemRepository)
+        /// <param name="newsSourceRepository">Репозиторий источников</param>
+        public NewsController(INewsItemRepository newsItemRepository, INewsSourceRepository newsSourceRepository)
         {
             _newsItemRepository = newsItemRepository;
+            _newsSourceRepository = newsSourceRepository;
         }
+
+        private int GetUserId() => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
         /// <summary>
         /// Получает последние новости с возможностью фильтрации и пагинации
@@ -45,6 +53,15 @@ namespace Svodka.Web.Controllers
             [FromQuery] string[]? categories = null,
             string? sourceType = null)
         {
+            var userId = GetUserId();
+            var userSources = await _newsSourceRepository.GetAllSourcesByUserIdAsync(userId);
+            var userSourceIds = userSources.Select(s => s.Id).ToList();
+
+            // Если запрошены источники, фильтруем только те, что принадлежат пользователю
+            var sourceIdsToQuery = (sources != null && sources.Length > 0)
+                ? sources.Intersect(userSourceIds).ToList()
+                : userSourceIds;
+
             DateTime? fromDateUtc = null;
 
             if (!string.IsNullOrWhiteSpace(period))
@@ -59,7 +76,6 @@ namespace Svodka.Web.Controllers
                 };
             }
 
-            var sourcesList = sources?.ToList();
             var categoriesList = categories?.ToList();
 
             SourceType? st = null;
@@ -68,7 +84,7 @@ namespace Svodka.Web.Controllers
                 st = parsedType;
             }
 
-            var news = await _newsItemRepository.GetLatestNewsAsync(limit, q, fromDateUtc, sourcesList, categoriesList, offset, st);
+            var news = await _newsItemRepository.GetLatestNewsAsync(limit, q, fromDateUtc, sourceIdsToQuery, categoriesList, offset, st);
             bool hasMore = news.Count() == limit;
 
             return Ok(new { items = news, hasMore = hasMore, offset = offset, limit = limit });

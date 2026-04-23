@@ -1,7 +1,6 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState, useEffect } from 'react';
 import type { NewsItem } from '../types/NewsItem';
-
-const STORAGE_KEY = 'svodka_favorites';
+import { useAuth } from './AuthContext';
 
 interface FavoritesContextValue {
   favorites: NewsItem[];
@@ -12,27 +11,34 @@ interface FavoritesContextValue {
 
 const FavoritesContext = createContext<FavoritesContextValue | null>(null);
 
-function loadFromStorage(): NewsItem[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveToStorage(items: NewsItem[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-}
-
 export function FavoritesProvider({ children }: { children: React.ReactNode }) {
-  const [favorites, setFavorites] = useState<NewsItem[]>(loadFromStorage);
+  const { user } = useAuth();
+  const STORAGE_KEY = useMemo(() => user?.email ? `svodka_favorites_${user.email}` : 'svodka_favorites_guest', [user]);
+  
+  const [favorites, setFavorites] = useState<NewsItem[]>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      setFavorites(raw ? JSON.parse(raw) : []);
+  }, [STORAGE_KEY]);
+
+  const saveToStorage = useCallback((items: NewsItem[]) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }, [STORAGE_KEY]);
 
   const refresh = useCallback(() => {
-    setFavorites(loadFromStorage());
-  }, []);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    setFavorites(raw ? JSON.parse(raw) : []);
+  }, [STORAGE_KEY]);
 
   const isFavorite = useCallback(
     (id: number) => favorites.some((f) => f.id === id),
@@ -46,7 +52,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
       saveToStorage(next);
       return next;
     });
-  }, []);
+  }, [saveToStorage]);
 
   const value = useMemo(
     () => ({ favorites, isFavorite, toggleFavorite, refresh }),
