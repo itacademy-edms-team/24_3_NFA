@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { updateSource, type RssSourceConfiguration, type GitHubSourceConfiguration, type RedditSourceConfiguration } from '../services/newsService';
+import api from '../services/api';
+import toast from 'react-hot-toast';
 
 interface Source {
   id: number;
@@ -40,44 +42,40 @@ const EditSourceForm: React.FC = () => {
   
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadSource = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:5043/api/sources/${id}`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const sourceData: Source = await response.json();
+        const response = await api.get(`/api/sources/${id}`);
+        const sourceData = response.data;
         console.log('Loaded source:', sourceData);
         setSource(sourceData);
         setName(sourceData.name);
 
         // Парсим конфигурацию в зависимости от типа
-        const config = JSON.parse(sourceData.configuration);
+        const config = typeof sourceData.configuration === 'string' 
+          ? JSON.parse(sourceData.configuration) 
+          : sourceData.configuration;
+          
         console.log('Parsed config:', config);
         console.log('Source type:', sourceData.type);
         
         const sourceType = sourceData.type.toLowerCase();
         
         if (sourceType === 'rss') {
-          console.log('Setting RSS config');
           setRssConfig({
             url: config.url || config.Url || '',
             limit: config.limit || config.Limit || 10,
             category: config.category || config.Category || ''
           });
         } else if (sourceType === 'github') {
-          console.log('Setting GitHub config');
           setGithubConfig({
             repositoryOwner: config.repositoryOwner || config.RepositoryOwner || '',
             repositoryName: config.repositoryName || config.RepositoryName || '',
             limit: config.limit || config.Limit || 10,
           });
         } else if (sourceType === 'reddit') {
-          console.log('Setting Reddit config');
           setRedditConfig({
             subreddit: config.subreddit || config.Subreddit || '',
             sortType: config.sortType || config.SortType || 'hot',
@@ -86,7 +84,7 @@ const EditSourceForm: React.FC = () => {
           });
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Произошла ошибка при загрузке источника.');
+        toast.error('Произошла ошибка при загрузке источника.');
         console.error(err);
       } finally {
         setLoading(false);
@@ -101,7 +99,6 @@ const EditSourceForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    setError(null);
 
     if (!source) return;
 
@@ -138,12 +135,12 @@ const EditSourceForm: React.FC = () => {
         isActive: source.isActive,
       };
 
-      console.log('Sending configuration:', configuration);
       await updateSource(source.id, sourceData);
+      toast.success('Источник успешно обновлен!');
       navigate('/sources');
     } catch (err) {
       console.error("Error updating source:", err);
-      setError(err instanceof Error ? err.message : 'Произошла ошибка при обновлении источника.');
+      toast.error('Произошла ошибка при обновлении источника.');
     } finally {
       setSaving(false);
     }
@@ -170,7 +167,6 @@ const EditSourceForm: React.FC = () => {
       <h2 className="text-lg font-semibold mb-4 text-slate-900">
         Редактировать {getSourceTypeLabel(source.type)} источник
       </h2>
-      {error && <div className="mb-4 p-2 bg-red-100 text-red-700 rounded text-xs">{error}</div>}
       <form onSubmit={handleSubmit}>
         {/* Название - общее для всех */}
         <div className="mb-4">

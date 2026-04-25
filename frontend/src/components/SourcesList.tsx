@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { emitSourcesChanged } from '../services/newsService';
+import { SourceSkeleton } from './Skeleton';
 
 interface Source {
   id: number;
@@ -23,12 +24,22 @@ const SourcesList: React.FC = () => {
     loadSources();
   }, []);
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+  };
+
   const loadSources = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('http://localhost:5043/api/sources');
+      const response = await fetch('http://localhost:5043/api/sources', {
+        headers: getAuthHeaders()
+      });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -46,6 +57,7 @@ const SourcesList: React.FC = () => {
     try {
       const response = await fetch(`http://localhost:5043/api/sources/${id}`, {
         method: 'DELETE',
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) {
@@ -71,7 +83,13 @@ const SourcesList: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="text-center text-slate-500 mt-10 text-sm">Загрузка источников...</div>;
+    return (
+      <div className="max-w-4xl mx-auto mt-6 p-6 bg-white rounded-2xl shadow-md border border-slate-100 space-y-4">
+        <SourceSkeleton />
+        <SourceSkeleton />
+        <SourceSkeleton />
+      </div>
+    );
   }
 
   if (error) {

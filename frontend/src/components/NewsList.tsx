@@ -4,6 +4,7 @@ import NewsItemCard from './NewsItemCard';
 import type { NewsItem } from '../types/NewsItem';
 import { fetchLatestNews, type PeriodFilter, type FilterParams } from '../services/newsService';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
+import { NewsItemSkeleton } from './Skeleton';
 
 interface NewsListProps {
   timeFilter: PeriodFilter;
@@ -180,7 +181,13 @@ const NewsList: React.FC<NewsListProps> = ({ timeFilter, searchQuery, sourceType
   }, []);
 
   if (loading) {
-    return <div className="text-center text-slate-500 mt-10 text-sm">Загрузка новостей...</div>;
+    return (
+      <div className="min-w-0 max-w-[844px] mx-auto space-y-4">
+        <NewsItemSkeleton />
+        <NewsItemSkeleton />
+        <NewsItemSkeleton />
+      </div>
+    );
   }
 
   const showEmptyState = !!error || (news.length === 0 && !loadingMore);
@@ -227,7 +234,10 @@ const NewsList: React.FC<NewsListProps> = ({ timeFilter, searchQuery, sourceType
           Footer: () => (
             <div className="py-6 text-center">
               {loadingMore && (
-                <p className="text-slate-500 text-sm">Загрузка еще новостей...</p>
+                <div className="space-y-4">
+                  <NewsItemSkeleton />
+                  <NewsItemSkeleton />
+                </div>
               )}
               {!hasMore && news.length > 0 && (
                 <p className="text-slate-400 text-xs">Вы посмотрели все новости</p>

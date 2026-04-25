@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom'; 
 import { createSource } from '../services/newsService';
 import type { RssSourceConfiguration, GitHubSourceConfiguration, RedditSourceConfiguration } from '../services/newsService'; 
+import toast from 'react-hot-toast';
 
 const AddSourceForm: React.FC = () => {
   const [sourceType, setSourceType] = useState<string>('rss');
@@ -25,14 +26,12 @@ const AddSourceForm: React.FC = () => {
   const [redditCategory, setRedditCategory] = useState<string>('');
   
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
 
   const navigate = useNavigate(); 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
     try {
       let configuration: RssSourceConfiguration | GitHubSourceConfiguration | RedditSourceConfiguration;
@@ -84,12 +83,12 @@ const AddSourceForm: React.FC = () => {
       setRedditLimit(10);
       setRedditCategory('');
 
-      alert('Источник успешно добавлен!');
+      toast.success('Источник успешно добавлен!');
       // Navigate to home page to see the new news
       navigate('/');
     } catch (err) {
       console.error("Error adding source:", err);
-      setError(err instanceof Error ? err.message : 'Произошла ошибка при добавлении источника.');
+      toast.error(err instanceof Error ? err.message : 'Произошла ошибка при добавлении источника.');
     } finally {
       setLoading(false);
     }
@@ -98,7 +97,6 @@ const AddSourceForm: React.FC = () => {
   return (
     <div className="max-w-md mx-auto mt-6 p-6 bg-white rounded-2xl shadow-md border border-slate-100 text-sm z-50">
       <h2 className="text-lg font-semibold mb-4 text-slate-900">Добавить новый источник</h2>
-      {error && <div className="mb-4 p-2 bg-red-100 text-red-700 rounded text-xs">{error}</div>}
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
           <label htmlFor="sourceType" className="block text-xs font-medium text-gray-700 mb-1">
