@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
 interface AuthContextType {
   token: string | null;
   user: { email: string } | null;
+  loading: boolean;
   login: (token: string, email: string) => void;
   logout: () => void;
 }
@@ -10,6 +11,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   token: null,
   user: null,
+  loading: false,
   login: () => {},
   logout: () => {},
 });
@@ -35,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ token, user, login, logout }}>
+    <AuthContext.Provider value={{ token, user, loading: false, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

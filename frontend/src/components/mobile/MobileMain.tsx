@@ -21,11 +21,11 @@ const MobileMain: React.FC = () => {
 
   const [selectedPeriod, setSelectedPeriod] = useState<string | number>('');
   const [selectedSources, setSelectedSources] = useState<number[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [filterOptions, setFilterOptions] = useState<{
     sources: Array<{ id: number; name: string }>;
-    categories: string[];
+    tags: string[];
   } | null>(null);
 
   useEffect(() => {
@@ -91,7 +91,7 @@ const MobileMain: React.FC = () => {
         period: String(selectedPeriod) as PeriodFilter,
         searchQuery: searchQuery || undefined,
         sources: selectedSources.length > 0 ? selectedSources : undefined,
-        categories: selectedCategories.length > 0 ? selectedCategories : undefined,
+        tags: selectedTags.length > 0 ? selectedTags : undefined,
       };
 
       const response = await fetchLatestNews(params) as any;
@@ -116,11 +116,11 @@ const MobileMain: React.FC = () => {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [offset, selectedPeriod, searchQuery, selectedSources, selectedCategories]);
+  }, [offset, selectedPeriod, searchQuery, selectedSources, selectedTags]);
 
   useEffect(() => {
     loadNews(true);
-  }, [selectedPeriod, searchQuery, selectedSources, selectedCategories]);
+  }, [selectedPeriod, searchQuery, selectedSources, selectedTags]);
 
   const handleSourceToggle = (sourceId: number) => {
     setSelectedSources(prev =>
@@ -130,11 +130,11 @@ const MobileMain: React.FC = () => {
     );
   };
 
-  const handleCategoryToggle = (category: string) => {
-    setSelectedCategories(prev =>
-      prev.includes(category)
-        ? prev.filter(cat => cat !== category)
-        : [...prev, category]
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags(prev =>
+      prev.includes(tag)
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
     );
   };
 
@@ -145,7 +145,7 @@ const MobileMain: React.FC = () => {
 
   const clearFilters = () => {
     setSelectedSources([]);
-    setSelectedCategories([]);
+    setSelectedTags([]);
     setSelectedPeriod('');
     setFilterMenuOpen(false);
     loadNews(true);
@@ -233,7 +233,7 @@ const MobileMain: React.FC = () => {
             <button
               onClick={() => setFilterMenuOpen(true)}
               className={`p-2 rounded-lg transition-colors ${
-                selectedSources.length > 0 || selectedCategories.length > 0
+                selectedSources.length > 0 || selectedTags.length > 0
                   ? 'text-[#6B5B95] bg-[#6B5B95]/10'
                   : 'text-[#6B6B6B] active:bg-[#E5E5EA]'
               }`}
@@ -312,21 +312,21 @@ const MobileMain: React.FC = () => {
                 </div>
               </div>
 
-              {/* Фильтр по категориям */}
+              {/* Фильтр по тегам */}
               <div>
-                <h4 className="text-[14px] font-semibold text-[#1A1A1A] mb-2">Категории</h4>
+                <h4 className="text-[14px] font-semibold text-[#1A1A1A] mb-2">Теги</h4>
                 <div className="flex flex-wrap gap-2">
-                  {filterOptions?.categories.map((category) => (
+                  {filterOptions?.tags.map((tag) => (
                     <button
-                      key={category}
-                      onClick={() => handleCategoryToggle(category)}
+                      key={tag}
+                      onClick={() => handleTagToggle(tag)}
                       className={`px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors ${
-                        selectedCategories.includes(category)
+                        selectedTags.includes(tag)
                           ? 'bg-[#6B5B95] text-white'
                           : 'bg-[#F5F5F7] text-[#6B6B6B]'
                       }`}
                     >
-                      {category}
+                      {tag}
                     </button>
                   ))}
                 </div>

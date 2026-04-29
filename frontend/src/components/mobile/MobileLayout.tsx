@@ -8,7 +8,7 @@ import MobileSettings from './MobileSettings';
 
 const MobileLayout: React.FC = () => {
   return (
-    <div className="min-h-screen bg-[#F5F5F7]">
+    <div className="min-h-screen bg-slate-200">
       <main className="pb-[64px]">
         <Routes>
           <Route path="/" element={<MobileMain />} />

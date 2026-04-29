@@ -17,7 +17,7 @@ export interface FilterParams {
   searchQuery?: string;
   period?: PeriodFilter;
   sources?: number[];
-  categories?: string[];
+  tags?: string[];
   sourceType?: string;
 }
 
@@ -49,7 +49,7 @@ export const fetchLatestNews = async (params: FilterParams = {}): Promise<NewsRe
   }
 };
 
-export const fetchFilterOptions = async (): Promise<{ sources: Array<{ id: number, name: string }>, categories: string[] }> => {
+export const fetchFilterOptions = async (): Promise<{ sources: Array<{ id: number, name: string }>, tags: string[] }> => {
   try {
     const response = await api.get('/api/sources/filter-options');
     return response.data;
@@ -62,8 +62,31 @@ export const fetchFilterOptions = async (): Promise<{ sources: Array<{ id: numbe
 export interface SourceData {
   name: string;
   type: string; 
-  configuration: any;
+  configuration: RssSourceConfiguration | GitHubSourceConfiguration | RedditSourceConfiguration;
   isActive: boolean;
+  tags?: string[];
+}
+
+export interface RssSourceConfiguration {
+  url: string;
+  limit: number;
+  category?: string;
+}
+
+export interface GitHubSourceConfiguration {
+  repositoryOwner: string;
+  repositoryName: string;
+  token?: string;
+  limit: number;
+  eventTypes?: string[];
+  category?: string;
+}
+
+export interface RedditSourceConfiguration {
+  subreddit: string;
+  sortType: string;
+  limit: number;
+  category?: string;
 }
 
 export const updateSource = async (id: number, sourceData: SourceData): Promise<void> => {
@@ -83,6 +106,7 @@ export const createSource = async (sourceData: SourceData): Promise<void> => {
       type: sourceData.type,
       configuration: sourceData.configuration, 
       isActive: sourceData.isActive,
+      tags: sourceData.tags ?? [],
     });
     emitSourcesChanged();
   } catch (error) {

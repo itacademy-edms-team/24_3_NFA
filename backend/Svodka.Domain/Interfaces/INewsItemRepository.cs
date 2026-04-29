@@ -27,7 +27,7 @@ namespace Svodka.Domain.Interfaces
         /// <param name="searchQuery">Поисковый запрос для фильтрации по заголовку или описанию</param>
         /// <param name="fromDateUtc">Дата начала для фильтрации по времени публикации</param>
         /// <param name="sourceIds">Список идентификаторов источников для фильтрации</param>
-        /// <param name="categories">Список категорий для фильтрации</param>
+        /// <param name="tags">Список тегов источника для фильтрации (режим ALL)</param>
         /// <param name="offset">Смещение для пагинации</param>
         /// <param name="sourceType">Тип источника для фильтрации</param>
         /// <returns>Коллекция новостей</returns>
@@ -36,7 +36,7 @@ namespace Svodka.Domain.Interfaces
             string? searchQuery = null,
             DateTime? fromDateUtc = null,
             List<int>? sourceIds = null,
-            List<string>? categories = null,
+            List<string>? tags = null,
             int offset = 0,
             SourceType? sourceType = null);
     }

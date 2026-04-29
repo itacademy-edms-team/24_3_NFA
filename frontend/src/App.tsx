@@ -18,8 +18,9 @@ import { type PeriodFilter } from './services/newsService';
 import './App.css';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { token } = useAuth();
-  return token ? <>{children}</> : <Navigate to="/login" />;
+  const { user, loading } = useAuth();
+  if (loading) return <div className="flex h-screen items-center justify-center">Загрузка...</div>;
+  return user ? <>{children}</> : <Navigate to="/login" />;
 };
 
 function AppContent() {
@@ -28,11 +29,11 @@ function AppContent() {
   const [sourceTypeFilter, setSourceTypeFilter] = useState<string | undefined>(undefined);
   const [appliedFilters, setAppliedFilters] = useState({
     sources: [] as number[],
-    categories: [] as string[],
+    tags: [] as string[],
     period: '' as TopBarPeriod
   });
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { user } = useAuth();
 
   const handlePeriodChange = (value: TopBarPeriod) => {
     setTimeFilter(value);
@@ -53,20 +54,21 @@ function AppContent() {
       {/* Desktop Layout (>= 768px) */}
       <div className="hidden md:flex min-h-screen items-center justify-center bg-slate-200 text-slate-900">
         <div className="h-[90vh] w-[95vw] max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden flex">
-          {token && (
+          {user && (
             <Sidebar
               onSourceTypeChange={setSourceTypeFilter}
               onLogoClick={handleLogoClick}
             />
           )}
           <div className="flex-1 flex flex-col bg-slate-50">
-            {token && (
+            {user && (
               <TopBar
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
                 period={timeFilter as TopBarPeriod}
                 onPeriodChange={handlePeriodChange}
                 onFiltersChange={setAppliedFilters}
+                sourceType={sourceTypeFilter}
               />
             )}
             <main className="flex-1 px-8 py-6 overflow-y-auto overflow-x-hidden">

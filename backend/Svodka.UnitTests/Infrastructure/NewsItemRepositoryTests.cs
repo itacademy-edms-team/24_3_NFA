@@ -41,7 +41,7 @@ namespace Svodka.UnitTests.Infrastructure
                 searchQuery: null,
                 fromDateUtc: DateTime.UtcNow.AddDays(-7),
                 sourceIds: null,
-                categories: null,
+                tags: null,
                 offset: 0,
                 sourceType: null
             );

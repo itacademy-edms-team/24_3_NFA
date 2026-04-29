@@ -1,4 +1,4 @@
-﻿using Svodka.Domain.Entities;
+using Svodka.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace Svodka.Domain.Interfaces
 {
     /// <summary>
-    /// Интерфейс репозитория для управления источниками новостей
+    /// Интерфейс репозитория для управления каналами источников новостей
     /// </summary>
     public interface INewsSourceRepository
     {
@@ -84,5 +84,38 @@ namespace Svodka.Domain.Interfaces
         /// </summary>
         /// <returns>Задача выполнения операции</returns>
         Task SaveChangesAsync();
+
+        /// <summary>
+        /// Получает существующие теги по их нормализованным именам
+        /// </summary>
+        /// <param name="normalizedNames">Коллекция нормализованных имен тегов</param>
+        /// <returns>Список найденных тегов</returns>
+        Task<List<Tag>> GetTagsByNormalizedNamesAsync(IEnumerable<string> normalizedNames);
+
+        /// <summary>
+        /// Добавляет новые теги в базу данных
+        /// </summary>
+        /// <param name="tags">Коллекция тегов для добавления</param>
+        /// <returns>Задача выполнения операции</returns>
+        Task AddTagsAsync(IEnumerable<Tag> tags);
+
+        /// <summary>
+        /// Получает уникальные имена тегов, назначенных источникам пользователя
+        /// </summary>
+        /// <param name="userId">Идентификатор пользователя</param>
+        Task<List<string>> GetTagNamesByUserIdAsync(int userId);
+
+        /// <summary>
+        /// Удаляет все связи источника с тегами
+        /// </summary>
+        /// <param name="newsSourceId">Идентификатор источника</param>
+        Task ClearNewsSourceTagsAsync(int newsSourceId);
+
+        /// <summary>
+        /// Добавляет связи источника с тегами
+        /// </summary>
+        /// <param name="newsSourceId">Идентификатор источника</param>
+        /// <param name="tags">Список тегов</param>
+        Task AddNewsSourceTagsAsync(int newsSourceId, IEnumerable<Tag> tags);
     }
 }

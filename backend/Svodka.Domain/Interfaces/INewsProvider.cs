@@ -38,10 +38,10 @@ namespace Svodka.Domain.Interfaces
         object DeserializeConfiguration(string json, int defaultLimit);
 
         /// <summary>
-        /// Извлекает категорию из JSON-конфигурации
+        /// Извлекает предлагаемые теги из JSON-конфигурации
         /// </summary>
         /// <param name="json">JSON-строка конфигурации</param>
-        /// <returns>Название категории или null</returns>
-        string? GetCategory(string json);
+        /// <returns>Список тегов</returns>
+        IEnumerable<string> GetSuggestedTags(string json);
     }
 }

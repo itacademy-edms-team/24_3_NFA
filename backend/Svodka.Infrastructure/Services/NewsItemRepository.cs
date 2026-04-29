@@ -3,6 +3,7 @@ using Svodka.Domain.Entities;
 using Svodka.Domain.Enums;
 using Svodka.Domain.Interfaces;
 using Svodka.Infrastructure.Data;
+using System.Text.RegularExpressions;
 
 namespace Svodka.Infrastructure.Services
 {
@@ -66,7 +67,7 @@ namespace Svodka.Infrastructure.Services
         /// <param name="searchQuery">Поисковый запрос для фильтрации по заголовку или описанию</param>
         /// <param name="fromDateUtc">Дата начала для фильтрации по времени публикации</param>
         /// <param name="sourceIds">Список идентификаторов источников для фильтрации</param>
-        /// <param name="categories">Список категорий для фильтрации</param>
+        /// <param name="tags">Список тегов источника для фильтрации (режим ALL)</param>
         /// <param name="offset">Смещение для пагинации</param>
         /// <param name="sourceType">Тип источника для фильтрации</param>
         /// <returns>Коллекция новостей</returns>
@@ -75,7 +76,7 @@ namespace Svodka.Infrastructure.Services
             string? searchQuery = null,
             DateTime? fromDateUtc = null,
             List<int>? sourceIds = null,
-            List<string>? categories = null,
+            List<string>? tags = null,
             int offset = 0,
             SourceType? sourceType = null)
         {
@@ -113,10 +114,18 @@ namespace Svodka.Infrastructure.Services
                 query = query.Where(n => sourceIds.Contains(n.SourceId));
             }
 
-            // Фильтрация по категориям
-            if (categories != null && categories.Any())
+            // Фильтрация по тегам источника
+            var normalizedTags = NormalizeTags(tags);
+            if (normalizedTags.Any())
             {
-                query = query.Where(n => categories.Contains(n.Category));
+                // Получаем список ID источников, у которых есть ХОТЯ БЫ ОДИН из тегов
+                var validSourceIds = _context.NewsSourceTags
+                    .Where(st => normalizedTags.Contains(st.Tag.NormalizedName))
+                    .Select(st => st.NewsSourceId)
+                    .Distinct();
+
+                // Фильтруем новости только по этим источникам
+                query = query.Where(n => validSourceIds.Contains(n.SourceId));
             }
 
             return await query
@@ -125,6 +134,32 @@ namespace Svodka.Infrastructure.Services
                 .Skip(offset)
                 .Take(limit)
                 .ToListAsync();
+        }
+
+        private static List<string> NormalizeTags(IEnumerable<string>? tags)
+        {
+            if (tags == null)
+            {
+                return new List<string>();
+            }
+
+            var seen = new HashSet<string>();
+            var result = new List<string>();
+            foreach (var rawTag in tags)
+            {
+                if (string.IsNullOrWhiteSpace(rawTag))
+                {
+                    continue;
+                }
+
+                var normalized = Regex.Replace(rawTag.Trim(), @"\s+", " ").ToLowerInvariant();
+                if (seen.Add(normalized))
+                {
+                    result.Add(normalized);
+                }
+            }
+
+            return result;
         }
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using Svodka.Domain.Enums;
@@ -31,5 +32,10 @@ namespace Svodka.Application.DTOs
         /// Флаг активности источника
         /// </summary>
         public bool IsActive { get; set; } = true;
+
+        /// <summary>
+        /// Теги источника
+        /// </summary>
+        public string[] Tags { get; set; } = Array.Empty<string>();
     }
 }

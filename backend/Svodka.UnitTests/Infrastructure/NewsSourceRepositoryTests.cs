@@ -70,24 +70,27 @@ namespace Svodka.UnitTests.Infrastructure
         }
 
         [Fact]
-        public async Task GetAllSourcesAsync_ReturnsAllSources()
+        public async Task GetAllSourcesByUserIdAsync_ReturnsUserSources()
         {
             // Arrange
+            var userId = 1;
             var newsSources = new List<NewsSource>
             {
-                new NewsSource { Id = 1, Name = "Test Source 1", Type = SourceType.Rss, Configuration = "{}", IsActive = true },
-                new NewsSource { Id = 2, Name = "Test Source 2", Type = SourceType.Rss, Configuration = "{}", IsActive = true }
+                new NewsSource { Id = 1, Name = "Test Source 1", Type = SourceType.Rss, Configuration = "{}", IsActive = true, UserId = userId },
+                new NewsSource { Id = 2, Name = "Test Source 2", Type = SourceType.Rss, Configuration = "{}", IsActive = true, UserId = userId },
+                new NewsSource { Id = 3, Name = "Other User Source", Type = SourceType.Rss, Configuration = "{}", IsActive = true, UserId = 2 }
             };
 
             await _context.NewsSources.AddRangeAsync(newsSources);
             await _context.SaveChangesAsync();
 
             // Act
-            var result = await _repository.GetAllSourcesAsync();
+            var result = await _repository.GetAllSourcesByUserIdAsync(userId);
 
             // Assert
             Assert.NotNull(result);
             Assert.Equal(2, result.Count());
+            Assert.All(result, s => Assert.Equal(userId, s.UserId));
         }
 
         public void Dispose()

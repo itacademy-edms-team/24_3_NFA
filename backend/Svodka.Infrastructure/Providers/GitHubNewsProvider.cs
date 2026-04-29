@@ -83,10 +83,11 @@ namespace Svodka.Infrastructure.Providers
             return config;
         }
 
-        public string? GetCategory(string json)
+        public IEnumerable<string> GetSuggestedTags(string json)
         {
             var config = JsonSerializer.Deserialize<GitHubSourceConfiguration>(json);
-            return config?.Category ?? "GitHub";
+            var tag = config?.Category ?? "GitHub";
+            return new List<string> { tag };
         }
     }
 }

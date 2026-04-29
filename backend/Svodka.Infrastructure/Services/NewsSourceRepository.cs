@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Svodka.Domain.Entities;
 using Svodka.Domain.Interfaces;
 using Svodka.Infrastructure.Data;
@@ -63,7 +63,9 @@ namespace Svodka.Infrastructure.Services
         public async Task<NewsSource?> GetByIdAndUserIdAsync(int id, int userId)
         {
             return await _context.NewsSources
-                                  .FirstOrDefaultAsync(ns => ns.Id == id && ns.UserId == userId);
+                .Include(ns => ns.NewsSourceTags)
+                .ThenInclude(st => st.Tag)
+                .FirstOrDefaultAsync(ns => ns.Id == id && ns.UserId == userId);
         }
 
         /// <summary>
@@ -134,6 +136,72 @@ namespace Svodka.Infrastructure.Services
         public async Task AddNewsSourceAsync(NewsSource source)
         {
             _context.NewsSources.Add(source);
+        }
+
+        /// <summary>
+        /// Получает существующие теги по нормализованным именам
+        /// </summary>
+        /// <param name="normalizedNames">Коллекция нормализованных имен тегов</param>
+        /// <returns>Список найденных тегов</returns>
+        public async Task<List<Tag>> GetTagsByNormalizedNamesAsync(IEnumerable<string> normalizedNames)
+        {
+            var names = normalizedNames.Distinct().ToList();
+            if (!names.Any())
+            {
+                return new List<Tag>();
+            }
+
+            return await _context.Tags
+                .Where(t => names.Contains(t.NormalizedName))
+                .ToListAsync();
+        }
+
+        /// <summary>
+        /// Добавляет новые теги в базу данных
+        /// </summary>
+        /// <param name="tags">Коллекция тегов для добавления</param>
+        /// <returns>Задача выполнения операции</returns>
+        public Task AddTagsAsync(IEnumerable<Tag> tags)
+        {
+            _context.Tags.AddRange(tags);
+            return Task.CompletedTask;
+        }
+
+        public async Task<List<string>> GetTagNamesByUserIdAsync(int userId)
+        {
+            // Получаем уникальные имена тегов, назначенных источникам пользователя
+            return await _context.NewsSourceTags
+                .Where(st => st.NewsSource.UserId == userId)
+                .Select(st => st.Tag.Name)
+                .Distinct()
+                .ToListAsync();
+        }
+
+        public Task ClearNewsSourceTagsAsync(int newsSourceId)
+        {
+            var existingLinks = _context.NewsSourceTags
+                .Where(st => st.NewsSourceId == newsSourceId);
+
+            _context.NewsSourceTags.RemoveRange(existingLinks);
+            return Task.CompletedTask;
+        }
+
+        public Task AddNewsSourceTagsAsync(int newsSourceId, IEnumerable<Tag> tags)
+        {
+            var unique = tags
+                .GroupBy(t => t.NormalizedName)
+                .Select(g => g.First())
+                .ToList();
+
+            var links = unique.Select(tag => new NewsSourceTag
+            {
+                NewsSourceId = newsSourceId,
+                TagId = tag.Id,
+                Tag = tag
+            });
+
+            _context.NewsSourceTags.AddRange(links);
+            return Task.CompletedTask;
         }
 
         /// <summary>

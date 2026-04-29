@@ -36,6 +36,14 @@ builder.Services.AddAuthentication(x =>
         ValidateIssuer = false,
         ValidateAudience = false
     };
+    x.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            context.Token = context.Request.Cookies["token"];
+            return Task.CompletedTask;
+        }
+    };
 });
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -125,7 +133,9 @@ var app = builder.Build();
 
 
 
-// CORS до остального middleware
+app.UseRouting();
+
+// CORS after Routing but before Auth
 if (app.Environment.IsDevelopment())
 {
     app.UseCors("DevelopmentCORS");
@@ -134,19 +144,6 @@ else
 {
     app.UseCors("AllowReactApp");
 }
-
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Error");
-    app.UseHsts();
-    app.UseHttpsRedirection();
-}
-
-app.UseStaticFiles();
-
-app.UseMiddleware<Svodka.Web.Middleware.ErrorHandlingMiddleware>();
-
-app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();

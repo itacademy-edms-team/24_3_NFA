@@ -40,7 +40,7 @@ namespace Svodka.Web.Controllers
         /// <param name="q">Поисковый запрос</param>
         /// <param name="period">Период публикации (day, week, month)</param>
         /// <param name="sources">Фильтр по идентификаторам источников</param>
-        /// <param name="categories">Фильтр по категориям</param>
+        /// <param name="tags">Фильтр по тегам источников (режим ALL)</param>
         /// <param name="sourceType">Тип источника</param>
         /// <returns>Список новостей</returns>
         [HttpGet]
@@ -50,7 +50,7 @@ namespace Svodka.Web.Controllers
             string? q = null,
             string? period = null,
             [FromQuery] int[]? sources = null,
-            [FromQuery] string[]? categories = null,
+            [FromQuery] string[]? tags = null,
             string? sourceType = null)
         {
             var userId = GetUserId();
@@ -76,7 +76,7 @@ namespace Svodka.Web.Controllers
                 };
             }
 
-            var categoriesList = categories?.ToList();
+            var tagsList = tags?.ToList();
 
             SourceType? st = null;
             if (!string.IsNullOrWhiteSpace(sourceType) && Enum.TryParse<SourceType>(sourceType, true, out var parsedType))
@@ -84,7 +84,7 @@ namespace Svodka.Web.Controllers
                 st = parsedType;
             }
 
-            var news = await _newsItemRepository.GetLatestNewsAsync(limit, q, fromDateUtc, sourceIdsToQuery, categoriesList, offset, st);
+            var news = await _newsItemRepository.GetLatestNewsAsync(limit, q, fromDateUtc, sourceIdsToQuery, tagsList, offset, st);
             bool hasMore = news.Count() == limit;
 
             return Ok(new { items = news, hasMore = hasMore, offset = offset, limit = limit });

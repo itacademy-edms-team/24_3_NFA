@@ -1,4 +1,4 @@
-﻿
+
 using Microsoft.EntityFrameworkCore;
 using Svodka.Domain.Entities;
 
@@ -31,6 +31,16 @@ namespace Svodka.Infrastructure.Data
         /// Набор сущностей пользователей
         /// </summary>
         public DbSet<User> Users { get; set; }
+
+        /// <summary>
+        /// Набор сущностей тегов источников
+        /// </summary>
+        public DbSet<Tag> Tags { get; set; }
+
+        /// <summary>
+        /// Набор связей источников и тегов
+        /// </summary>
+        public DbSet<NewsSourceTag> NewsSourceTags { get; set; }
 
         /// <summary>
         /// Настройка модели базы данных при создании
@@ -77,6 +87,38 @@ namespace Svodka.Infrastructure.Data
                       .HasForeignKey(d => d.UserId)
                       .OnDelete(DeleteBehavior.Cascade)
                       .HasConstraintName("FK_NewsSource_User_UserId");
+            });
+
+            modelBuilder.Entity<Tag>(entity =>
+            {
+                entity.Property(e => e.Name)
+                      .IsRequired()
+                      .HasMaxLength(100);
+
+                entity.Property(e => e.NormalizedName)
+                      .IsRequired()
+                      .HasMaxLength(100);
+
+                entity.HasIndex(e => e.NormalizedName)
+                      .IsUnique()
+                      .HasDatabaseName("IX_Tag_NormalizedName");
+            });
+
+            modelBuilder.Entity<NewsSourceTag>(entity =>
+            {
+                entity.HasKey(e => new { e.NewsSourceId, e.TagId });
+
+                entity.HasOne(e => e.NewsSource)
+                      .WithMany(s => s.NewsSourceTags)
+                      .HasForeignKey(e => e.NewsSourceId)
+                      .OnDelete(DeleteBehavior.Cascade)
+                      .HasConstraintName("FK_NewsSourceTag_NewsSource_NewsSourceId");
+
+                entity.HasOne(e => e.Tag)
+                      .WithMany(t => t.NewsSourceTags)
+                      .HasForeignKey(e => e.TagId)
+                      .OnDelete(DeleteBehavior.Cascade)
+                      .HasConstraintName("FK_NewsSourceTag_Tag_TagId");
             });
         }
     }

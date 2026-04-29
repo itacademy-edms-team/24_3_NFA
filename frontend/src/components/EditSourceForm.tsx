@@ -1,174 +1,194 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { updateSource, type RssSourceConfiguration, type GitHubSourceConfiguration, type RedditSourceConfiguration } from '../services/newsService';
 import api from '../services/api';
+import { updateSource, type RssSourceConfiguration, type GitHubSourceConfiguration, type RedditSourceConfiguration } from '../services/newsService';
 import toast from 'react-hot-toast';
 
-interface Source {
+type ApiTag = {
+  tag?: { name?: string };
+};
+
+type SourceFromApi = {
   id: number;
   name: string;
   type: string;
   configuration: string;
   isActive: boolean;
-}
+  newsSourceTags?: ApiTag[];
+};
 
 const EditSourceForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [source, setSource] = useState<Source | null>(null);
+
+  const sourceId = useMemo(() => {
+    const parsed = Number(id);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [id]);
+
+  const [loading, setLoading] = useState<boolean>(true);
+  const [saving, setSaving] = useState<boolean>(false);
+
+  const [sourceType, setSourceType] = useState<string>('rss');
+  const [isActive, setIsActive] = useState<boolean>(true);
   const [name, setName] = useState<string>('');
-  
-  // RSS Configuration
-  const [rssConfig, setRssConfig] = useState<RssSourceConfiguration>({
-    url: '',
-    limit: 10,
-    category: ''
-  });
-  
-  // GitHub Configuration
+
+  const [rssConfig, setRssConfig] = useState<RssSourceConfiguration>({ url: '', limit: 10, category: undefined });
   const [githubConfig, setGithubConfig] = useState<GitHubSourceConfiguration>({
     repositoryOwner: '',
     repositoryName: '',
+    token: undefined,
     limit: 10,
+    eventTypes: undefined,
+    category: undefined
   });
-  
-  // Reddit Configuration
   const [redditConfig, setRedditConfig] = useState<RedditSourceConfiguration>({
     subreddit: '',
     sortType: 'hot',
     limit: 10,
-    category: ''
+    category: undefined
   });
-  
-  const [loading, setLoading] = useState<boolean>(true);
-  const [saving, setSaving] = useState<boolean>(false);
+
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState<string>('');
+
+  const normalizeTag = (value: string): string => value.trim().replace(/\s+/g, ' ').toLowerCase();
+
+  const addTag = (rawTag: string) => {
+    const normalizedTag = normalizeTag(rawTag);
+    if (!normalizedTag) return;
+    setTags((prev) => (prev.includes(normalizedTag) ? prev : [...prev, normalizedTag]));
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setTags((prev) => prev.filter((t) => t !== tagToRemove));
+  };
+
+  const commitTagFromInput = () => {
+    addTag(tagInput);
+    setTagInput('');
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === ' ' || e.key === ',' || e.key === 'Enter') {
+      e.preventDefault();
+      commitTagFromInput();
+    }
+  };
 
   useEffect(() => {
+    if (!sourceId) return;
+
     const loadSource = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/api/sources/${id}`);
+        const response = await api.get<SourceFromApi>(`/api/sources/${sourceId}`);
         const sourceData = response.data;
-        console.log('Loaded source:', sourceData);
-        setSource(sourceData);
-        setName(sourceData.name);
 
-        // Парсим конфигурацию в зависимости от типа
-        const config = typeof sourceData.configuration === 'string' 
-          ? JSON.parse(sourceData.configuration) 
-          : sourceData.configuration;
-          
-        console.log('Parsed config:', config);
-        console.log('Source type:', sourceData.type);
-        
-        const sourceType = sourceData.type.toLowerCase();
-        
-        if (sourceType === 'rss') {
+        setName(sourceData.name ?? '');
+        setSourceType(sourceData.type ?? 'rss');
+        setIsActive(!!sourceData.isActive);
+
+        const config = sourceData.configuration ? JSON.parse(sourceData.configuration) : {};
+
+        const typeLower = (sourceData.type ?? '').toLowerCase();
+        if (typeLower === 'rss') {
           setRssConfig({
-            url: config.url || config.Url || '',
-            limit: config.limit || config.Limit || 10,
-            category: config.category || config.Category || ''
+            url: config.url ?? '',
+            limit: Number(config.limit ?? 10),
+            category: config.category ?? undefined
           });
-        } else if (sourceType === 'github') {
+        } else if (typeLower === 'github') {
           setGithubConfig({
-            repositoryOwner: config.repositoryOwner || config.RepositoryOwner || '',
-            repositoryName: config.repositoryName || config.RepositoryName || '',
-            limit: config.limit || config.Limit || 10,
+            repositoryOwner: config.repositoryOwner ?? '',
+            repositoryName: config.repositoryName ?? '',
+            token: config.token ?? undefined,
+            limit: Number(config.limit ?? 10),
+            eventTypes: config.eventTypes ?? undefined,
+            category: config.category ?? undefined
           });
-        } else if (sourceType === 'reddit') {
+        } else if (typeLower === 'reddit') {
           setRedditConfig({
-            subreddit: config.subreddit || config.Subreddit || '',
-            sortType: config.sortType || config.SortType || 'hot',
-            limit: config.limit || config.Limit || 10,
-            category: config.category || config.Category || ''
+            subreddit: config.subreddit ?? '',
+            sortType: config.sortType ?? 'hot',
+            limit: Number(config.limit ?? 10),
+            category: config.category ?? undefined
           });
         }
+
+        const serverTags = (sourceData.newsSourceTags ?? [])
+          .map((t) => t.tag?.name)
+          .filter((x): x is string => typeof x === 'string' && x.trim().length > 0);
+
+        // На клиенте храним нормализованные строки для дедупликации
+        const normalized = Array.from(new Set(serverTags.map(normalizeTag)));
+        setTags(normalized);
       } catch (err) {
-        toast.error('Произошла ошибка при загрузке источника.');
-        console.error(err);
+        toast.error(err instanceof Error ? err.message : 'Ошибка при загрузке источника');
       } finally {
         setLoading(false);
       }
     };
 
-    if (id) {
-      loadSource();
-    }
-  }, [id]);
+    loadSource();
+  }, [sourceId]);
+
+  const typeLower = sourceType.toLowerCase();
+
+  const getSourceTypeLabel = (type: string) => {
+    if (type === 'github') return 'GitHub';
+    if (type === 'reddit') return 'Reddit';
+    if (type === 'rss') return 'RSS';
+    return type;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!sourceId) return;
+
     setSaving(true);
-
-    if (!source) return;
-
     try {
       let configuration: any;
-
-      if (source.type.toLowerCase() === 'rss') {
-        configuration = {
-          url: rssConfig.url,
-          limit: rssConfig.limit,
-          category: rssConfig.category || '',
-        };
-      } else if (source.type.toLowerCase() === 'github') {
-        configuration = {
-          RepositoryOwner: githubConfig.repositoryOwner,
-          RepositoryName: githubConfig.repositoryName,
-          Limit: githubConfig.limit,
-        };
-      } else if (source.type.toLowerCase() === 'reddit') {
-        configuration = {
-          Subreddit: redditConfig.subreddit,
-          SortType: redditConfig.sortType,
-          Limit: redditConfig.limit,
-          Category: redditConfig.category || '',
-        };
+      if (typeLower === 'rss') {
+        configuration = rssConfig;
+      } else if (typeLower === 'github') {
+        configuration = githubConfig;
       } else {
-        throw new Error('Неподдерживаемый тип источника');
+        configuration = redditConfig;
       }
 
-      const sourceData = {
-        name: name,
-        type: source.type,
-        configuration: configuration,
-        isActive: source.isActive,
-      };
+      await updateSource(sourceId, {
+        name,
+        type: typeLower,
+        configuration,
+        isActive,
+        tags
+      });
 
-      await updateSource(source.id, sourceData);
       toast.success('Источник успешно обновлен!');
       navigate('/sources');
     } catch (err) {
-      console.error("Error updating source:", err);
-      toast.error('Произошла ошибка при обновлении источника.');
+      toast.error(err instanceof Error ? err.message : 'Ошибка обновления.');
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <div className="text-center text-slate-500 mt-10 text-sm">Загрузка...</div>;
+    return (
+      <div className="max-w-md mx-auto mt-6 p-6 bg-white rounded-2xl shadow-md border border-slate-100 text-sm">
+        Загрузка...
+      </div>
+    );
   }
-
-  if (!source) {
-    return <div className="text-center text-slate-500 mt-10 text-sm">Источник не найден</div>;
-  }
-
-  const getSourceTypeLabel = (type: string) => {
-    const typeLower = type.toLowerCase();
-    if (typeLower === 'github') return 'GitHub';
-    if (typeLower === 'reddit') return 'Reddit';
-    if (typeLower === 'rss') return 'RSS';
-    return type;
-  };
 
   return (
-    <div className="max-w-md mx-auto mt-6 p-6 bg-white rounded-2xl shadow-md border border-slate-100 text-sm">
+    <div className="max-w-md mx-auto mt-6 p-6 bg-white rounded-2xl shadow-md border border-slate-100 text-sm z-50">
       <h2 className="text-lg font-semibold mb-4 text-slate-900">
-        Редактировать {getSourceTypeLabel(source.type)} источник
+        Редактировать {getSourceTypeLabel(typeLower)} источник
       </h2>
+
       <form onSubmit={handleSubmit}>
-        {/* Название - общее для всех */}
         <div className="mb-4">
           <label htmlFor="name" className="block text-xs font-medium text-slate-700 mb-1">
             Название источника *
@@ -180,181 +200,105 @@ const EditSourceForm: React.FC = () => {
             onChange={(e) => setName(e.target.value)}
             required
             className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="Например, Хабрахабр"
           />
         </div>
 
-        {/* RSS поля */}
-        {source.type.toLowerCase() === 'rss' && (
-          <>
-            <div className="mb-4">
-              <label htmlFor="url" className="block text-xs font-medium text-slate-700 mb-1">
-                URL RSS-ленты
-              </label>
-              <input
-                type="text"
-                id="url"
-                value={rssConfig.url}
-                disabled
-                className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-100 text-slate-500 cursor-not-allowed"
-              />
-              <p className="mt-1 text-xs text-slate-500">URL нельзя изменить</p>
+        <div className="mb-4">
+          <label htmlFor="sourceTags" className="block text-xs font-medium text-gray-700 mb-1">
+            Теги источника
+          </label>
+          <div className="w-full rounded-md border border-gray-300 px-2 py-2 focus-within:ring-2 focus-within:ring-blue-500">
+            <div className="mb-2 flex flex-wrap gap-2">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800"
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => removeTag(tag)}
+                    className="rounded-full px-1 text-blue-700 hover:bg-blue-200"
+                    aria-label={`Удалить тег ${tag}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
             </div>
-            <div className="mb-4">
-              <label htmlFor="rssLimit" className="block text-xs font-medium text-slate-700 mb-1">
-                Лимит новостей
-              </label>
-              <input
-                type="number"
-                id="rssLimit"
-                value={rssConfig.limit}
-                onChange={(e) => setRssConfig(prev => ({ ...prev, limit: Number(e.target.value) }))}
-                min="1"
-                max="100"
-                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div className="mb-4">
-              <label htmlFor="category" className="block text-xs font-medium text-slate-700 mb-1">
-                Категория
-              </label>
-              <input
-                type="text"
-                id="category"
-                value={rssConfig.category || ''}
-                onChange={(e) => setRssConfig(prev => ({ ...prev, category: e.target.value }))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Например, Технологии"
-              />
-            </div>
-          </>
-        )}
-
-        {/* GitHub поля */}
-        {source.type.toLowerCase() === 'github' && (
-          <>
-            <div className="mb-4">
-              <label htmlFor="owner" className="block text-xs font-medium text-slate-700 mb-1">
-                Владелец репозитория
-              </label>
-              <input
-                type="text"
-                id="owner"
-                value={githubConfig.repositoryOwner}
-                onChange={(e) => setGithubConfig(prev => ({ ...prev, repositoryOwner: e.target.value }))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Например, microsoft"
-              />
-            </div>
-            <div className="mb-4">
-              <label htmlFor="repo" className="block text-xs font-medium text-slate-700 mb-1">
-                Название репозитория
-              </label>
-              <input
-                type="text"
-                id="repo"
-                value={githubConfig.repositoryName}
-                onChange={(e) => setGithubConfig(prev => ({ ...prev, repositoryName: e.target.value }))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Например, vscode"
-              />
-            </div>
-            <div className="mb-4">
-              <label htmlFor="githubLimit" className="block text-xs font-medium text-slate-700 mb-1">
-                Лимит событий
-              </label>
-              <input
-                type="number"
-                id="githubLimit"
-                value={githubConfig.limit}
-                onChange={(e) => setGithubConfig(prev => ({ ...prev, limit: Number(e.target.value) }))}
-                min="1"
-                max="100"
-                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-          </>
-        )}
-
-        {/* Reddit поля */}
-        {source.type.toLowerCase() === 'reddit' && (
-          <>
-            <div className="mb-4">
-              <label htmlFor="subreddit" className="block text-xs font-medium text-slate-700 mb-1">
-                Сабреддит
-              </label>
-              <input
-                type="text"
-                id="subreddit"
-                value={redditConfig.subreddit}
-                onChange={(e) => setRedditConfig(prev => ({ ...prev, subreddit: e.target.value }))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Например, technology"
-              />
-            </div>
-            <div className="mb-4">
-              <label htmlFor="sortType" className="block text-xs font-medium text-slate-700 mb-1">
-                Тип сортировки
-              </label>
-              <select
-                id="sortType"
-                value={redditConfig.sortType}
-                onChange={(e) => setRedditConfig(prev => ({ ...prev, sortType: e.target.value }))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="hot">Hot (Горячее)</option>
-                <option value="new">New (Новое)</option>
-                <option value="top">Top (Лучшее)</option>
-              </select>
-            </div>
-            <div className="mb-4">
-              <label htmlFor="redditLimit" className="block text-xs font-medium text-slate-700 mb-1">
-                Лимит постов
-              </label>
-              <input
-                type="number"
-                id="redditLimit"
-                value={redditConfig.limit}
-                onChange={(e) => setRedditConfig(prev => ({ ...prev, limit: Number(e.target.value) }))}
-                min="1"
-                max="100"
-                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div className="mb-4">
-              <label htmlFor="redditCategory" className="block text-xs font-medium text-slate-700 mb-1">
-                Категория
-              </label>
-              <input
-                type="text"
-                id="redditCategory"
-                value={redditConfig.category || ''}
-                onChange={(e) => setRedditConfig(prev => ({ ...prev, category: e.target.value }))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Например, Технологии"
-              />
-            </div>
-          </>
-        )}
-
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={() => navigate('/sources')}
-            className="flex-1 py-2 px-4 border border-slate-300 rounded-full text-slate-700 hover:bg-slate-50 transition-colors"
-          >
-            Отмена
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className={`flex-1 py-2 px-4 rounded-full text-white font-medium transition-colors ${
-              saving ? 'bg-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'
-            }`}
-          >
-            {saving ? 'Сохранение...' : 'Сохранить'}
-          </button>
+            <input
+              type="text"
+              id="sourceTags"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={handleTagKeyDown}
+              onBlur={commitTagFromInput}
+              className="w-full border-0 p-0 text-sm focus:outline-none"
+              placeholder="Введите тег и нажмите пробел или запятую"
+            />
+          </div>
         </div>
+
+        {typeLower === 'rss' && (
+          <div className="mb-4">
+            <label htmlFor="rssLimit" className="block text-xs font-medium text-gray-700 mb-1">
+              Лимит новостей
+            </label>
+            <input
+              type="number"
+              id="rssLimit"
+              value={rssConfig.limit}
+              min={1}
+              max={100}
+              onChange={(e) => setRssConfig((prev) => ({ ...prev, limit: Number(e.target.value) }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        )}
+
+        {typeLower === 'github' && (
+          <div className="mb-4">
+            <label htmlFor="githubLimit" className="block text-xs font-medium text-gray-700 mb-1">
+              Лимит событий
+            </label>
+            <input
+              type="number"
+              id="githubLimit"
+              value={githubConfig.limit}
+              min={1}
+              max={100}
+              onChange={(e) => setGithubConfig((prev) => ({ ...prev, limit: Number(e.target.value) }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        )}
+
+        {typeLower === 'reddit' && (
+          <div className="mb-4">
+            <label htmlFor="redditLimit" className="block text-xs font-medium text-gray-700 mb-1">
+              Лимит постов
+            </label>
+            <input
+              type="number"
+              id="redditLimit"
+              value={redditConfig.limit}
+              min={1}
+              max={100}
+              onChange={(e) => setRedditConfig((prev) => ({ ...prev, limit: Number(e.target.value) }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={saving}
+          className={`w-full py-2 px-4 rounded-md text-white font-medium ${
+            saving ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+          }`}
+        >
+          {saving ? 'Сохранение...' : 'Сохранить'}
+        </button>
       </form>
     </div>
   );

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaBars, FaSearch, FaFilter, FaUserCircle, FaChevronDown, FaPlus } from 'react-icons/fa';
+import { FaBars, FaSearch, FaFilter, FaChevronDown, FaPlus } from 'react-icons/fa';
 import { fetchFilterOptions, SOURCES_CHANGED_EVENT } from '../services/newsService';
 import { createPortal } from 'react-dom';
 
@@ -13,9 +13,10 @@ interface TopBarProps {
   onPeriodChange: (value: TopBarPeriod) => void;
   onFiltersChange?: (filters: {
     sources: number[];
-    categories: string[];
+    tags: string[];
     period: TopBarPeriod;
   }) => void;
+  sourceType?: string;
 }
 
 const TopBar: React.FC<TopBarProps> = ({
@@ -24,17 +25,18 @@ const TopBar: React.FC<TopBarProps> = ({
   period,
   onPeriodChange,
   onFiltersChange,
+  sourceType,
 }) => {
   const navigate = useNavigate();
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
-  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
   const [filterOptions, setFilterOptions] = useState<{
     sources: Array<{ id: number, name: string }>,
-    categories: string[]
+    tags: string[]
   } | null>(null);
   const [selectedSources, setSelectedSources] = useState<number[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const filterRef = useRef<HTMLDivElement>(null);
   const [filterPosition, setFilterPosition] = useState({ top: 0, left: 0 });
   const [filterOptionsVersion, setFilterOptionsVersion] = useState(0);
@@ -43,7 +45,10 @@ const TopBar: React.FC<TopBarProps> = ({
     const loadFilterOptions = async () => {
       try {
         const options = await fetchFilterOptions();
-        setFilterOptions(options);
+        setFilterOptions({
+          ...options,
+          tags: options.tags ?? []
+        });
       } catch (error) {
         console.error('Error loading filter options:', error);
       }
@@ -91,18 +96,18 @@ const TopBar: React.FC<TopBarProps> = ({
     );
   };
 
-  const handleCategoryToggle = (category: string) => {
-    setSelectedCategories(prev => 
-      prev.includes(category) 
-        ? prev.filter(cat => cat !== category) 
-        : [...prev, category]
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tag) 
+        ? prev.filter(t => t !== tag) 
+        : [...prev, tag]
     );
   };
 
   const applyFilters = () => {
     onFiltersChange?.({
       sources: selectedSources,
-      categories: selectedCategories,
+      tags: selectedTags,
       period: period
     });
     setFilterMenuOpen(false);
@@ -110,10 +115,10 @@ const TopBar: React.FC<TopBarProps> = ({
 
   const resetFilters = () => {
     setSelectedSources([]);
-    setSelectedCategories([]);
+    setSelectedTags([]);
     onFiltersChange?.({
       sources: [],
-      categories: [],
+      tags: [],
       period: '' as any
     });
     onPeriodChange('' as any);
@@ -222,34 +227,6 @@ const TopBar: React.FC<TopBarProps> = ({
                   </div>
                 </div>
 
-                {/* Категории - Аккордеон */}
-                {filterOptions?.categories && filterOptions.categories.length > 0 && (
-                  <div>
-                    <button
-                      onClick={() => setCategoriesOpen(!categoriesOpen)}
-                      className="w-full flex items-center justify-between font-semibold text-sm text-slate-900 mb-2"
-                    >
-                      <span>Категории</span>
-                      <FaChevronDown className={`text-xs transition-transform ${categoriesOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    {categoriesOpen && (
-                      <div className="space-y-1 max-h-40 overflow-y-auto pl-2">
-                        {filterOptions.categories.map((category) => (
-                          <label key={category} className="flex items-center space-x-2 text-sm cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={selectedCategories.includes(category)}
-                              onChange={() => handleCategoryToggle(category)}
-                              className="rounded text-indigo-600"
-                            />
-                            <span className="text-slate-700">{category}</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 {/* Каналы - Аккордеон */}
                 {filterOptions?.sources && filterOptions.sources.length > 0 && (
                   <div>
@@ -278,6 +255,34 @@ const TopBar: React.FC<TopBarProps> = ({
                   </div>
                 )}
 
+                {/* Теги - Аккордеон */}
+                {filterOptions?.tags && filterOptions.tags.length > 0 && (
+                  <div>
+                    <button
+                      onClick={() => setTagsOpen(!tagsOpen)}
+                      className="w-full flex items-center justify-between font-semibold text-sm text-slate-900 mb-2"
+                    >
+                      <span>Теги {sourceType ? (sourceType === 'rss' ? 'RSS' : sourceType.charAt(0).toUpperCase() + sourceType.slice(1)) : ''}</span>
+                      <FaChevronDown className={`text-xs transition-transform ${tagsOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {tagsOpen && (
+                      <div className="space-y-1 max-h-40 overflow-y-auto pl-2">
+                        {filterOptions.tags.map((tag) => (
+                          <label key={tag} className="flex items-center space-x-2 text-sm cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedTags.includes(tag)}
+                              onChange={() => handleTagToggle(tag)}
+                              className="rounded text-indigo-600"
+                            />
+                            <span className="text-slate-700">{tag}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex space-x-2 pt-2 border-t border-slate-200">
                   <button
                     onClick={applyFilters}
@@ -299,9 +304,7 @@ const TopBar: React.FC<TopBarProps> = ({
         </div>
       </div>
 
-      <div>
-        <FaUserCircle className="w-9 h-9 text-slate-500" />
-      </div>
+      <div />
 
       
     </header>

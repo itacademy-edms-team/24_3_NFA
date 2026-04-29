@@ -11,7 +11,6 @@ const AddSourceForm: React.FC = () => {
   // RSS fields
   const [url, setUrl] = useState<string>('');
   const [rssLimit, setRssLimit] = useState<number>(10); 
-  const [category, setCategory] = useState<string>('');
   
   // GitHub fields
   const [repositoryOwner, setRepositoryOwner] = useState<string>('');
@@ -23,11 +22,41 @@ const AddSourceForm: React.FC = () => {
   const [subreddit, setSubreddit] = useState<string>('');
   const [sortType, setSortType] = useState<string>('hot');
   const [redditLimit, setRedditLimit] = useState<number>(10);
-  const [redditCategory, setRedditCategory] = useState<string>('');
   
   const [loading, setLoading] = useState<boolean>(false);
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState<string>('');
 
   const navigate = useNavigate(); 
+
+  const normalizeTag = (value: string): string => value.trim().replace(/\s+/g, ' ').toLowerCase();
+
+  const addTag = (rawTag: string) => {
+    const normalizedTag = normalizeTag(rawTag);
+    if (!normalizedTag) {
+      return;
+    }
+
+    setTags((prevTags) =>
+      prevTags.includes(normalizedTag) ? prevTags : [...prevTags, normalizedTag]
+    );
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setTags((prevTags) => prevTags.filter((tag) => tag !== tagToRemove));
+  };
+
+  const commitTagFromInput = () => {
+    addTag(tagInput);
+    setTagInput('');
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === ' ' || e.key === ',' || e.key === 'Enter') {
+      e.preventDefault();
+      commitTagFromInput();
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +69,6 @@ const AddSourceForm: React.FC = () => {
         configuration = {
           url: url,
           limit: rssLimit,
-          category: category || "",
         };
       } else if (sourceType === 'github') {
         configuration = {
@@ -54,7 +82,6 @@ const AddSourceForm: React.FC = () => {
           subreddit: subreddit,
           sortType: sortType,
           limit: redditLimit,
-          category: redditCategory || undefined,
         };
       } else {
         throw new Error('Неподдерживаемый тип источника');
@@ -65,6 +92,7 @@ const AddSourceForm: React.FC = () => {
         type: sourceType, 
         configuration: configuration,
         isActive: true, 
+        tags,
       };
 
       await createSource(newSourceData);
@@ -73,7 +101,6 @@ const AddSourceForm: React.FC = () => {
       setName('');
       setUrl('');
       setRssLimit(10);
-      setCategory('');
       setRepositoryOwner('');
       setRepositoryName('');
       setToken('');
@@ -81,7 +108,8 @@ const AddSourceForm: React.FC = () => {
       setSubreddit('');
       setSortType('hot');
       setRedditLimit(10);
-      setRedditCategory('');
+      setTags([]);
+      setTagInput('');
 
       toast.success('Источник успешно добавлен!');
       // Navigate to home page to see the new news
@@ -115,6 +143,7 @@ const AddSourceForm: React.FC = () => {
           </select>
         </div>
         
+     
         <div className="mb-4">
           <label htmlFor="name" className="block text-xs font-medium text-gray-700 mb-1">
             Название источника *
@@ -128,6 +157,42 @@ const AddSourceForm: React.FC = () => {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Например, Хабрахабр"
           />
+        </div>
+
+        <div className="mb-4">
+          <label htmlFor="sourceTags" className="block text-xs font-medium text-gray-700 mb-1">
+            Теги источника
+          </label>
+          <div className="w-full rounded-md border border-gray-300 px-2 py-2 focus-within:ring-2 focus-within:ring-blue-500">
+            <div className="mb-2 flex flex-wrap gap-2">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800"
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => removeTag(tag)}
+                    className="rounded-full px-1 text-blue-700 hover:bg-blue-200"
+                    aria-label={`Удалить тег ${tag}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            <input
+              type="text"
+              id="sourceTags"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={handleTagKeyDown}
+              onBlur={commitTagFromInput}
+              className="w-full border-0 p-0 text-sm focus:outline-none"
+              placeholder="Введите тег и нажмите пробел или запятую"
+            />
+          </div>
         </div>
 
         {sourceType === 'rss' && (
@@ -158,19 +223,6 @@ const AddSourceForm: React.FC = () => {
                 min="1"
                 max="100"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="mb-4">
-              <label htmlFor="category" className="block text-xs font-medium text-gray-700 mb-1">
-                Категория
-              </label>
-              <input
-                type="text"
-                id="category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Например, Технологии"
               />
             </div>
           </>
@@ -279,19 +331,6 @@ const AddSourceForm: React.FC = () => {
                 min="1"
                 max="100"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="mb-4">
-              <label htmlFor="redditCategory" className="block text-xs font-medium text-gray-700 mb-1">
-                Категория
-              </label>
-              <input
-                type="text"
-                id="redditCategory"
-                value={redditCategory}
-                onChange={(e) => setRedditCategory(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Например, Технологии"
               />
             </div>
           </>

@@ -84,10 +84,10 @@ namespace Svodka.Infrastructure.Providers
             return config;
         }
 
-        public string? GetCategory(string json)
+        public IEnumerable<string> GetSuggestedTags(string json)
         {
             var config = JsonSerializer.Deserialize<RedditSourceConfiguration>(json);
-            return config?.Category;
+            return config?.Category != null ? new List<string> { config.Category } : new List<string>();
         }
     }
 }

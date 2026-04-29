@@ -5,12 +5,12 @@ import { fetchFilterOptions } from '../services/newsService';
 interface FilterPanelProps {
   onFilterChange: (filters: {
     sources: number[];
-    categories: string[];
+    tags: string[];
     period: string;
   }) => void;
   currentFilters: {
     sources: number[];
-    categories: string[];
+    tags: string[];
     period: string;
   };
 }
@@ -22,11 +22,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ onFilterChange, currentFilter
   
   const [filterOptions, setFilterOptions] = useState<{ 
     sources: Array<{ id: number, name: string }>, 
-    categories: string[] 
+    tags: string[] 
   } | null>(null);
   
   const [selectedSources, setSelectedSources] = useState<number[]>(currentFilters.sources);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(currentFilters.categories);
+  const [selectedTags, setSelectedTags] = useState<string[]>(currentFilters.tags);
   const [selectedPeriod, setSelectedPeriod] = useState<string>(currentFilters.period);
 
   useEffect(() => {
@@ -43,7 +43,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ onFilterChange, currentFilter
 
   useEffect(() => {
     setSelectedSources(currentFilters.sources);
-    setSelectedCategories(currentFilters.categories);
+    setSelectedTags(currentFilters.tags);
     setSelectedPeriod(currentFilters.period);
   }, [currentFilters]);
 
@@ -71,18 +71,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ onFilterChange, currentFilter
     );
   };
 
-  const handleCategoryToggle = (category: string) => {
-    setSelectedCategories(prev => 
-      prev.includes(category) 
-        ? prev.filter(cat => cat !== category) 
-        : [...prev, category]
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tag) 
+        ? prev.filter(t => t !== tag) 
+        : [...prev, tag]
     );
   };
 
   const applyFilters = () => {
     onFilterChange({
       sources: selectedSources,
-      categories: selectedCategories,
+      tags: selectedTags,
       period: selectedPeriod
     });
     setIsOpen(false);
@@ -90,11 +90,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ onFilterChange, currentFilter
 
   const resetFilters = () => {
     setSelectedSources([]);
-    setSelectedCategories([]);
+    setSelectedTags([]);
     setSelectedPeriod('');
     onFilterChange({
       sources: [],
-      categories: [],
+      tags: [],
       period: ''
     });
     setIsOpen(false);
@@ -153,19 +153,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ onFilterChange, currentFilter
               </div>
             )}
 
-            {filterOptions?.categories && filterOptions.categories.length > 0 && (
+            {filterOptions?.tags && filterOptions.tags.length > 0 && (
               <div className="mb-4">
-                <h3 className="font-medium mb-2">Категории</h3>
+                <h3 className="font-medium mb-2">Теги</h3>
                 <div className="space-y-1 max-h-40 overflow-y-auto">
-                  {filterOptions.categories.map((category) => (
-                    <label key={category} className="flex items-center space-x-2 text-sm">
+                  {filterOptions.tags.map((tag) => (
+                    <label key={tag} className="flex items-center space-x-2 text-sm">
                       <input
                         type="checkbox"
-                        checked={selectedCategories.includes(category)}
-                        onChange={() => handleCategoryToggle(category)}
+                        checked={selectedTags.includes(tag)}
+                        onChange={() => handleTagToggle(tag)}
                         className="rounded text-blue-600"
                       />
-                      <span>{category}</span>
+                      <span>{tag}</span>
                     </label>
                   ))}
                 </div>

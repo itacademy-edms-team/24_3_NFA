@@ -21,7 +21,7 @@ const MobileBottomNav: React.FC = () => {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E5E5EA] px-2 pb-safe">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-300 px-2 pb-safe">
       <div className="flex justify-around items-center h-16">
         {tabs.map((tab) => {
           const active = isActive(tab.path);
@@ -30,7 +30,7 @@ const MobileBottomNav: React.FC = () => {
               key={tab.path}
               onClick={() => navigate(tab.path)}
               className={`flex flex-col items-center justify-center w-full py-1 ${
-                active ? 'text-[#6B5B95]' : 'text-[#8E8E93]'
+                active ? 'text-slate-900' : 'text-slate-500'
               }`}
             >
               <tab.icon className="w-6 h-6 mb-0.5" />

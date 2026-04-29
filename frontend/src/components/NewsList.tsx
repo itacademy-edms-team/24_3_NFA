@@ -12,7 +12,7 @@ interface NewsListProps {
   sourceType?: string;
   appliedFilters?: {
     sources: number[];
-    categories: string[];
+    tags: string[];
     period: string;
   };
 }
@@ -38,7 +38,7 @@ const NewsList: React.FC<NewsListProps> = ({ timeFilter, searchQuery, sourceType
 
   const [filters, setFilters] = useState({
     sources: appliedFilters?.sources || [] as number[],
-    categories: appliedFilters?.categories || [] as string[],
+    tags: appliedFilters?.tags || [] as string[],
     period: appliedFilters?.period || timeFilter || ''
   });
 
@@ -64,7 +64,7 @@ const NewsList: React.FC<NewsListProps> = ({ timeFilter, searchQuery, sourceType
         searchQuery: searchQuery,
         period: filters.period as PeriodFilter,
         sources: filters.sources.length > 0 ? filters.sources : undefined,
-        categories: filters.categories.length > 0 ? filters.categories : undefined,
+        tags: filters.tags.length > 0 ? filters.tags : undefined,
         sourceType: sourceType
       };
 
@@ -138,7 +138,7 @@ const NewsList: React.FC<NewsListProps> = ({ timeFilter, searchQuery, sourceType
     if (appliedFilters) {
       setFilters({
         sources: appliedFilters.sources,
-        categories: appliedFilters.categories,
+        tags: appliedFilters.tags,
         period: appliedFilters.period
       });
     }

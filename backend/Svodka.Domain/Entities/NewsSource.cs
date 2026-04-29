@@ -1,4 +1,3 @@
-﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -69,6 +68,11 @@ namespace Svodka.Domain.Entities
         /// </summary>
         [JsonIgnore]
         public virtual ICollection<NewsItem> NewsItems { get; set; } = new List<NewsItem>();
+
+        /// <summary>
+        /// Связи источника с тегами
+        /// </summary>
+        public virtual ICollection<NewsSourceTag> NewsSourceTags { get; set; } = new List<NewsSourceTag>();
 
     }
 }
