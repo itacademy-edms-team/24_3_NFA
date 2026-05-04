@@ -1,26 +1,25 @@
-using Microsoft.Extensions.Logging;
-using Svodka.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Svodka.Domain.Entities;
+using Svodka.Domain.Enums;
+using Svodka.Domain.Interfaces;
+using Svodka.Domain.Models;
 
-namespace Svodka.Infrastructure.Services
+namespace Svodka.Infrastructure.Fetchers
 {
-    /// <summary>
-    /// Сервис для работы с GitHub API
-    /// </summary>
-    public class GitHubService : IGitHubService
+    public class GitHubNewsSourceFetcher : INewsSourceFetcher
     {
         private readonly HttpClient _httpClient;
-        private readonly ILogger<GitHubService> _logger;
+        private readonly ILogger<GitHubNewsSourceFetcher> _logger;
         private const string GitHubApiBaseUrl = "https://api.github.com";
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true
+        };
 
-        public GitHubService(HttpClient httpClient, ILogger<GitHubService> logger)
+        public GitHubNewsSourceFetcher(HttpClient httpClient, ILogger<GitHubNewsSourceFetcher> logger)
         {
             _httpClient = httpClient;
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "Svodka News Aggregator 1.0");
@@ -28,61 +27,107 @@ namespace Svodka.Infrastructure.Services
             _logger = logger;
         }
 
-        public async Task<IEnumerable<NewsItem>> FetchRepositoryEventsAsync(
-            string owner, 
-            string repo, 
-            string? token, 
-            int limit,
-            List<string>? eventTypes = null)
+        public SourceType Type => SourceType.GitHub;
+
+        public async Task<IEnumerable<NewsItem>> FetchAsync(
+            NewsSource source,
+            int defaultLimit,
+            CancellationToken ct = default)
         {
+            var config = DeserializeConfiguration(source.Configuration, defaultLimit);
+
             try
             {
-                if (!string.IsNullOrEmpty(token))
+                if (!string.IsNullOrEmpty(config.Token))
                 {
-                    _httpClient.DefaultRequestHeaders.Authorization = 
-                        new AuthenticationHeaderValue("Bearer", token);
+                    _httpClient.DefaultRequestHeaders.Authorization =
+                        new AuthenticationHeaderValue("Bearer", config.Token);
                 }
 
-                var url = $"{GitHubApiBaseUrl}/repos/{owner}/{repo}/events?per_page={Math.Min(limit, 100)}";
-                _logger.LogInformation("Загрузка событий GitHub репозитория: {Owner}/{Repo}", owner, repo);
+                var url = $"{GitHubApiBaseUrl}/repos/{config.RepositoryOwner}/{config.RepositoryName}/events?per_page={Math.Min(config.Limit, 100)}";
+                _logger.LogInformation(
+                    "Загрузка событий GitHub репозитория: {Owner}/{Repo}",
+                    config.RepositoryOwner,
+                    config.RepositoryName);
 
-                var response = await _httpClient.GetAsync(url);
+                var response = await _httpClient.GetAsync(url, ct);
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    throw new InvalidOperationException(
+                        $"Репозиторий {config.RepositoryOwner}/{config.RepositoryName} не найден на GitHub.");
+                }
+                if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                {
+                    throw new InvalidOperationException(
+                        "Доступ к GitHub API запрещён. Проверьте токен или лимит запросов.");
+                }
                 response.EnsureSuccessStatusCode();
 
-                var jsonString = await response.Content.ReadAsStringAsync();
-                var events = JsonSerializer.Deserialize<List<GitHubEvent>>(jsonString, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                }) ?? new List<GitHubEvent>();
+                var jsonString = await response.Content.ReadAsStringAsync(ct);
+                var events = JsonSerializer.Deserialize<List<GitHubEvent>>(jsonString, JsonOptions)
+                    ?? new List<GitHubEvent>();
 
-
-                if (eventTypes != null && eventTypes.Any())
+                if (config.EventTypes != null && config.EventTypes.Any())
                 {
-                    events = events.Where(e => eventTypes.Contains(e.Type, StringComparer.OrdinalIgnoreCase)).ToList();
+                    events = events
+                        .Where(e => config.EventTypes.Contains(e.Type, StringComparer.OrdinalIgnoreCase))
+                        .ToList();
                 }
 
+                var newsItems = events
+                    .Take(config.Limit)
+                    .Select(e => ConvertEventToNewsItem(e, config.RepositoryOwner, config.RepositoryName))
+                    .ToList();
 
-                events = events.Take(limit).ToList();
-
-                var newsItems = events.Select(e => ConvertEventToNewsItem(e, owner, repo)).ToList();
-
-                _logger.LogInformation("Получено {Count} событий из репозитория {Owner}/{Repo}", newsItems.Count, owner, repo);
+                _logger.LogInformation(
+                    "Получено {Count} событий из репозитория {Owner}/{Repo}",
+                    newsItems.Count,
+                    config.RepositoryOwner,
+                    config.RepositoryName);
 
                 return newsItems;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not InvalidOperationException)
             {
-                _logger.LogError(ex, "Ошибка при загрузке событий GitHub репозитория {Owner}/{Repo}", owner, repo);
-                throw;
+                _logger.LogError(
+                    ex,
+                    "Ошибка при загрузке событий GitHub репозитория {Owner}/{Repo}",
+                    config.RepositoryOwner,
+                    config.RepositoryName);
+                throw new InvalidOperationException(
+                    $"Не удалось загрузить события GitHub для {config.RepositoryOwner}/{config.RepositoryName}.",
+                    ex);
             }
             finally
             {
-                // Очищаем заголовок авторизации после использования
                 _httpClient.DefaultRequestHeaders.Authorization = null;
             }
         }
 
-        private NewsItem ConvertEventToNewsItem(GitHubEvent gitHubEvent, string owner, string repo)
+        public string ValidateAndNormalize(JsonElement json) =>
+            GitHubSourceConfiguration.ValidateAndNormalizeFromJson(json);
+
+        public IEnumerable<string> GetSuggestedTags(string json)
+        {
+            var config = JsonSerializer.Deserialize<GitHubSourceConfiguration>(json, JsonOptions);
+            var tag = config?.Category ?? "GitHub";
+            return new List<string> { tag };
+        }
+
+        private static GitHubSourceConfiguration DeserializeConfiguration(string json, int defaultLimit)
+        {
+            var config = JsonSerializer.Deserialize<GitHubSourceConfiguration>(json, SourceConfigurationJson.Options)
+                ?? throw new ArgumentException("Некорректная конфигурация GitHub.");
+
+            if (config.Limit == 0)
+            {
+                config.Limit = defaultLimit;
+            }
+
+            return config;
+        }
+
+        private static NewsItem ConvertEventToNewsItem(GitHubEvent gitHubEvent, string owner, string repo)
         {
             var title = GetEventTitle(gitHubEvent);
             var description = GetEventDescription(gitHubEvent);
@@ -130,7 +175,7 @@ namespace Svodka.Infrastructure.Services
             };
         }
 
-        private string GetEventTitle(GitHubEvent gitHubEvent)
+        private static string GetEventTitle(GitHubEvent gitHubEvent)
         {
             return gitHubEvent.Type switch
             {
@@ -144,7 +189,7 @@ namespace Svodka.Infrastructure.Services
             };
         }
 
-        private string GetEventDescription(GitHubEvent gitHubEvent)
+        private static string GetEventDescription(GitHubEvent gitHubEvent)
         {
             var actor = gitHubEvent.Actor?.Login ?? "Unknown";
             var repo = gitHubEvent.Repo?.Name ?? "repository";
@@ -161,20 +206,23 @@ namespace Svodka.Infrastructure.Services
             };
         }
 
-
         private class GitHubEvent
         {
             [JsonPropertyName("id")]
             public string Id { get; set; } = string.Empty;
+
             [JsonPropertyName("type")]
             public string Type { get; set; } = string.Empty;
+
             [JsonPropertyName("created_at")]
             public DateTime CreatedAt { get; set; }
-            
+
             [JsonPropertyName("actor")]
             public GitHubActor? Actor { get; set; }
+
             [JsonPropertyName("repo")]
             public GitHubRepo? Repo { get; set; }
+
             [JsonPropertyName("payload")]
             public GitHubPayload? Payload { get; set; }
         }
@@ -183,6 +231,7 @@ namespace Svodka.Infrastructure.Services
         {
             [JsonPropertyName("login")]
             public string Login { get; set; } = string.Empty;
+
             [JsonPropertyName("avatar_url")]
             public string? AvatarUrl { get; set; }
         }
@@ -197,10 +246,13 @@ namespace Svodka.Infrastructure.Services
         {
             [JsonPropertyName("issue")]
             public GitHubIssue? Issue { get; set; }
+
             [JsonPropertyName("pull_request")]
             public GitHubPullRequest? PullRequest { get; set; }
+
             [JsonPropertyName("ref_type")]
             public string? RefType { get; set; }
+
             [JsonPropertyName("release")]
             public GitHubRelease? Release { get; set; }
         }
@@ -209,8 +261,10 @@ namespace Svodka.Infrastructure.Services
         {
             [JsonPropertyName("title")]
             public string Title { get; set; } = string.Empty;
+
             [JsonPropertyName("body")]
             public string? Body { get; set; }
+
             [JsonPropertyName("html_url")]
             public string? HtmlUrl { get; set; }
         }
@@ -219,10 +273,13 @@ namespace Svodka.Infrastructure.Services
         {
             [JsonPropertyName("title")]
             public string Title { get; set; } = string.Empty;
+
             [JsonPropertyName("body")]
             public string? Body { get; set; }
+
             [JsonPropertyName("html_url")]
             public string? HtmlUrl { get; set; }
+
             [JsonPropertyName("number")]
             public int Number { get; set; }
         }
@@ -231,11 +288,12 @@ namespace Svodka.Infrastructure.Services
         {
             [JsonPropertyName("name")]
             public string Name { get; set; } = string.Empty;
+
             [JsonPropertyName("body")]
             public string? Body { get; set; }
+
             [JsonPropertyName("html_url")]
             public string? HtmlUrl { get; set; }
         }
     }
 }
-
