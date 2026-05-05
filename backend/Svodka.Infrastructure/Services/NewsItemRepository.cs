@@ -3,6 +3,7 @@ using Svodka.Domain.Entities;
 using Svodka.Domain.Enums;
 using Svodka.Domain.Interfaces;
 using Svodka.Infrastructure.Data;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace Svodka.Infrastructure.Services
@@ -118,11 +119,15 @@ namespace Svodka.Infrastructure.Services
             var normalizedTags = NormalizeTags(tags);
             if (normalizedTags.Any())
             {
-                // Получаем список ID источников, у которых есть ХОТЯ БЫ ОДИН из тегов
-                var validSourceIds = _context.NewsSourceTags
-                    .Where(st => normalizedTags.Contains(st.Tag.NormalizedName))
-                    .Select(st => st.NewsSourceId)
-                    .Distinct();
+                var sourcesWithTags = await _context.NewsSources
+                    .Include(source => source.NewsSourceTags)
+                    .ThenInclude(sourceTag => sourceTag.Tag)
+                    .ToListAsync();
+
+                var validSourceIds = sourcesWithTags
+                    .Where(source => normalizedTags.All(tag => SourceMatchesTag(source, tag)))
+                    .Select(source => source.Id)
+                    .ToList();
 
                 // Фильтруем новости только по этим источникам
                 query = query.Where(n => validSourceIds.Contains(n.SourceId));
@@ -160,6 +165,46 @@ namespace Svodka.Infrastructure.Services
             }
 
             return result;
+        }
+
+        private static bool SourceMatchesTag(NewsSource source, string normalizedTag)
+        {
+            var hasAssignedTag = source.NewsSourceTags.Any(sourceTag =>
+                sourceTag.Tag != null &&
+                sourceTag.Tag.NormalizedName == normalizedTag);
+
+            return hasAssignedTag || ConfigurationCategoryMatches(source.Configuration, normalizedTag);
+        }
+
+        private static bool ConfigurationCategoryMatches(string configuration, string normalizedTag)
+        {
+            if (string.IsNullOrWhiteSpace(configuration))
+            {
+                return false;
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(configuration);
+                if (!document.RootElement.TryGetProperty("category", out var category) &&
+                    !document.RootElement.TryGetProperty("Category", out category))
+                {
+                    return false;
+                }
+
+                return NormalizeTag(category.GetString()) == normalizedTag;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+        }
+
+        private static string NormalizeTag(string? tag)
+        {
+            return string.IsNullOrWhiteSpace(tag)
+                ? string.Empty
+                : Regex.Replace(tag.Trim(), @"\s+", " ").ToLowerInvariant();
         }
     }
 }

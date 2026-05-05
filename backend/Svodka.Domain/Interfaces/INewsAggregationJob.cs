@@ -14,8 +14,12 @@ namespace Svodka.Domain.Interfaces
         /// <param name="sourceId">
         /// Идентификатор источника. Если не указан, обрабатываются все активные источники.
         /// </param>
+        /// <param name="force">
+        /// При true — обрабатывать источник даже если IsActive = false (ручной запуск).
+        /// </param>
         /// <param name="cancellationToken">Токен отмены операции.</param>
-        Task ExecuteAsync(int? sourceId = null, CancellationToken cancellationToken = default);
+        /// <returns>Количество сохранённых новостей (0 при ошибке или пропуске).</returns>
+        Task<int> ExecuteAsync(int? sourceId = null, bool force = false, CancellationToken cancellationToken = default);
     }
 }
 

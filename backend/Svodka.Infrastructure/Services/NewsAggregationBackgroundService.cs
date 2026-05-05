@@ -65,11 +65,11 @@ namespace Svodka.Infrastructure.Services
 
             try
             {
-                await _aggregationJob.ExecuteAsync(null, stoppingToken);
+                await _aggregationJob.ExecuteAsync(cancellationToken: stoppingToken);
 
                 while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
                 {
-                    await _aggregationJob.ExecuteAsync(null, stoppingToken);
+                    await _aggregationJob.ExecuteAsync(cancellationToken: stoppingToken);
                 }
             }
             catch (OperationCanceledException)

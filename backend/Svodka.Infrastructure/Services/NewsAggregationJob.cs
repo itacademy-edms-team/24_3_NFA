@@ -46,16 +46,17 @@ namespace Svodka.Infrastructure.Services
         /// <param name="sourceId">Идентификатор источника для агрегации (опционально, если null - обрабатываются все активные источники)</param>
         /// <param name="cancellationToken">Токен отмены</param>
         /// <returns>Задача выполнения агрегации</returns>
-        public async Task ExecuteAsync(int? sourceId = null, CancellationToken cancellationToken = default)
+        public async Task<int> ExecuteAsync(int? sourceId = null, bool force = false, CancellationToken cancellationToken = default)
         {
             using var scope = _scopeFactory.CreateScope();
 
-            var providerFactory = scope.ServiceProvider.GetRequiredService<INewsProviderFactory>();
+            var fetcherFactory = scope.ServiceProvider.GetRequiredService<INewsSourceFetcherFactory>();
             var sourceRepository = scope.ServiceProvider.GetRequiredService<INewsSourceRepository>();
             var itemRepository = scope.ServiceProvider.GetRequiredService<INewsItemRepository>();
             var dbContext = scope.ServiceProvider.GetRequiredService<NewsAggregatorDbContext>();
 
             IEnumerable<NewsSource> sources;
+            var totalSaved = 0;
 
             if (sourceId.HasValue)
             {
@@ -63,13 +64,13 @@ namespace Svodka.Infrastructure.Services
                 if (source == null)
                 {
                     _logger.LogWarning("Источник с ID {SourceId} не найден для агрегации.", sourceId);
-                    return;
+                    return 0;
                 }
 
-                if (!source.IsActive)
+                if (!source.IsActive && !force)
                 {
                     _logger.LogInformation("Источник {SourceId} не активен, агрегация пропущена.", sourceId);
-                    return;
+                    return 0;
                 }
 
                 sources = new[] { source };
@@ -89,10 +90,8 @@ namespace Svodka.Infrastructure.Services
                 {
                     _logger.LogDebug("Обработка источника: {SourceName} (ID: {SourceId}, Type: {SourceType})", source.Name, source.Id, source.Type);
 
-                    var provider = providerFactory.GetProvider(source.Type);
-                    var configObject = provider.DeserializeConfiguration(source.Configuration, _options.NewsLimitPerSource);
-
-                    var newsItems = await provider.GetNewsAsync(configObject);
+                    var fetcher = fetcherFactory.GetFetcher(source.Type);
+                    var newsItems = await fetcher.FetchAsync(source, _options.NewsLimitPerSource, cancellationToken);
 
                     var itemsWithSourceId = newsItems.Select(item =>
                     {
@@ -100,27 +99,35 @@ namespace Svodka.Infrastructure.Services
                         return item;
                     }).ToList();
 
-                    if (itemsWithSourceId.Count == 0)
+                    if (itemsWithSourceId.Count > 0)
+                    {
+                        await itemRepository.SaveNewsAsync(itemsWithSourceId);
+                        totalSaved += itemsWithSourceId.Count;
+                        _logger.LogDebug("Обработано {Count} новостей из источника: {SourceName}", itemsWithSourceId.Count, source.Name);
+                    }
+                    else
                     {
                         _logger.LogDebug("Источник {SourceName} не вернул новых новостей.", source.Name);
-                        continue;
                     }
 
-                    await itemRepository.SaveNewsAsync(itemsWithSourceId);
-
                     await sourceRepository.UpdateLastPolledAtAsync(source.Id, DateTime.UtcNow);
-
-                    _logger.LogDebug("Обработано {Count} новостей из источника: {SourceName}", itemsWithSourceId.Count, source.Name);
+                    await sourceRepository.ClearLastErrorAsync(source.Id);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Ошибка при обработке источника {SourceName} (ID: {SourceId})", source.Name, source.Id);
-                    await sourceRepository.UpdateLastErrorAsync(source.Id, DateTime.UtcNow, ex.Message);
+                    var message = ex.Message;
+                    if (ex.InnerException != null)
+                    {
+                        message = $"{message} ({ex.InnerException.Message})";
+                    }
+                    await sourceRepository.UpdateLastErrorAsync(source.Id, DateTime.UtcNow, message);
                 }
             }
 
             await dbContext.SaveChangesAsync(cancellationToken);
             _logger.LogDebug("Цикл агрегации завершён.");
+            return totalSaved;
         }
     }
 }
