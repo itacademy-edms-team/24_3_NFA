@@ -80,6 +80,11 @@ namespace Svodka.Domain.Interfaces
         Task UpdateLastErrorAsync(int sourseId, System.DateTime utcNow, string error );
 
         /// <summary>
+        /// Очищает информацию об ошибке для источника (после успешного опроса)
+        /// </summary>
+        Task ClearLastErrorAsync(int sourceId);
+
+        /// <summary>
         /// Сохраняет все изменения, отслеживаемые контекстом, в базу данных
         /// </summary>
         /// <returns>Задача выполнения операции</returns>

@@ -14,18 +14,18 @@ namespace Svodka.Application.Services
     {
         private readonly INewsSourceRepository _newsSourceRepository;
         private readonly INewsAggregationJob _newsAggregationJob;
-        private readonly INewsProviderFactory _newsProviderFactory;
+        private readonly INewsSourceFetcherFactory _newsSourceFetcherFactory;
         private readonly ILogger<SourceService> _logger;
 
         public SourceService(
             INewsSourceRepository newsSourceRepository,
             INewsAggregationJob newsAggregationJob,
-            INewsProviderFactory newsProviderFactory,
+            INewsSourceFetcherFactory newsSourceFetcherFactory,
             ILogger<SourceService> logger)
         {
             _newsSourceRepository = newsSourceRepository;
             _newsAggregationJob = newsAggregationJob;
-            _newsProviderFactory = newsProviderFactory;
+            _newsSourceFetcherFactory = newsSourceFetcherFactory;
             _logger = logger;
         }
 
@@ -42,25 +42,7 @@ namespace Svodka.Application.Services
         public async Task<NewsSource> CreateSourceAsync(int userId, SourceDto dto, CancellationToken ct)
         {
             var configurationJson = ValidateAndNormalizeConfiguration(dto);
-            var normalizedTags = NormalizeTags(dto.Tags);
-            var existingTags = await _newsSourceRepository.GetTagsByNormalizedNamesAsync(normalizedTags.Select(t => t.NormalizedName));
-            var existingTagMap = existingTags.ToDictionary(t => t.NormalizedName, t => t);
-
-            var newTags = normalizedTags
-                .Where(t => !existingTagMap.ContainsKey(t.NormalizedName))
-                .Select(t => new Tag
-                {
-                    Name = t.Name,
-                    NormalizedName = t.NormalizedName
-                })
-                .ToList();
-
-            if (newTags.Any())
-            {
-                await _newsSourceRepository.AddTagsAsync(newTags);
-            }
-
-            var allTags = existingTags.Concat(newTags).ToList();
+            var allTags = await GetOrCreateTagsAsync(dto.Tags);
 
             var newsSource = new NewsSource
             {
@@ -82,7 +64,7 @@ namespace Svodka.Application.Services
 
             try
             {
-                await _newsAggregationJob.ExecuteAsync(newsSource.Id, ct);
+                await _newsAggregationJob.ExecuteAsync(newsSource.Id, force: true, cancellationToken: ct);
             }
             catch (Exception ex)
             {
@@ -98,17 +80,20 @@ namespace Svodka.Application.Services
             if (existingSource == null) return null;
 
             var configurationJson = ValidateAndNormalizeConfiguration(dto);
+            var allTags = await GetOrCreateTagsAsync(dto.Tags);
 
             existingSource.Name = dto.Name;
             existingSource.Type = dto.Type;
             existingSource.Configuration = configurationJson;
             existingSource.IsActive = dto.IsActive;
 
+            await _newsSourceRepository.ClearNewsSourceTagsAsync(existingSource.Id);
+            await _newsSourceRepository.AddNewsSourceTagsAsync(existingSource.Id, allTags);
             await _newsSourceRepository.SaveChangesAsync();
 
             try
             {
-                await _newsAggregationJob.ExecuteAsync(existingSource.Id, ct);
+                await _newsAggregationJob.ExecuteAsync(existingSource.Id, force: true, cancellationToken: ct);
             }
             catch (Exception ex)
             {
@@ -128,6 +113,36 @@ namespace Svodka.Application.Services
             return deleted;
         }
 
+        public async Task<NewsSource?> SetSourceActiveAsync(int id, int userId, bool isActive, CancellationToken ct)
+        {
+            var source = await _newsSourceRepository.GetByIdAndUserIdAsync(id, userId);
+            if (source == null) return null;
+
+            source.IsActive = isActive;
+            await _newsSourceRepository.SaveChangesAsync();
+            return source;
+        }
+
+        public async Task<SourceSyncResultDto?> SyncSourceAsync(int id, int userId, CancellationToken ct)
+        {
+            var source = await _newsSourceRepository.GetByIdAndUserIdAsync(id, userId);
+            if (source == null) return null;
+
+            var itemsAdded = await _newsAggregationJob.ExecuteAsync(id, force: true, cancellationToken: ct);
+
+            var updated = await _newsSourceRepository.GetByIdAsync(id);
+            if (updated == null) return null;
+
+            return new SourceSyncResultDto
+            {
+                SourceId = id,
+                ItemsAdded = itemsAdded,
+                LastPolledAtUtc = updated.LastPolledAtUtc,
+                LastError = updated.LastError,
+                LastErrorAtUtc = updated.LastErrorAtUtc
+            };
+        }
+
         public async Task<object> GetFilterOptionsAsync(int userId)
         {
             var sources = await _newsSourceRepository.GetAllSourcesByUserIdAsync(userId);
@@ -137,8 +152,8 @@ namespace Svodka.Application.Services
             {
                 try
                 {
-                    var provider = _newsProviderFactory.GetProvider(source.Type);
-                    var suggestedTags = provider.GetSuggestedTags(source.Configuration);
+                    var fetcher = _newsSourceFetcherFactory.GetFetcher(source.Type);
+                    var suggestedTags = fetcher.GetSuggestedTags(source.Configuration);
                     
                     foreach (var tag in suggestedTags)
                     {
@@ -171,8 +186,31 @@ namespace Svodka.Application.Services
 
         private string ValidateAndNormalizeConfiguration(SourceDto dto)
         {
-            var provider = _newsProviderFactory.GetProvider(dto.Type);
-            return provider.ValidateAndNormalize(dto.Configuration);
+            var fetcher = _newsSourceFetcherFactory.GetFetcher(dto.Type);
+            return fetcher.ValidateAndNormalize(dto.Configuration);
+        }
+
+        private async Task<List<Tag>> GetOrCreateTagsAsync(IEnumerable<string>? rawTags)
+        {
+            var normalizedTags = NormalizeTags(rawTags);
+            var existingTags = await _newsSourceRepository.GetTagsByNormalizedNamesAsync(normalizedTags.Select(t => t.NormalizedName));
+            var existingTagMap = existingTags.ToDictionary(t => t.NormalizedName, t => t);
+
+            var newTags = normalizedTags
+                .Where(t => !existingTagMap.ContainsKey(t.NormalizedName))
+                .Select(t => new Tag
+                {
+                    Name = t.Name,
+                    NormalizedName = t.NormalizedName
+                })
+                .ToList();
+
+            if (newTags.Any())
+            {
+                await _newsSourceRepository.AddTagsAsync(newTags);
+            }
+
+            return existingTags.Concat(newTags).ToList();
         }
 
         private static List<(string Name, string NormalizedName)> NormalizeTags(IEnumerable<string>? tags)

@@ -56,5 +56,9 @@ namespace Svodka.Application.Interfaces
         /// <param name="userId">Идентификатор пользователя</param>
         /// <returns>Объект с опциями фильтрации</returns>
         Task<object> GetFilterOptionsAsync(int userId);
+
+        Task<NewsSource?> SetSourceActiveAsync(int id, int userId, bool isActive, CancellationToken ct);
+
+        Task<SourceSyncResultDto?> SyncSourceAsync(int id, int userId, CancellationToken ct);
     }
 }

@@ -76,6 +76,8 @@ namespace Svodka.Infrastructure.Services
         public async Task<IEnumerable<NewsSource>> GetAllSourcesByUserIdAsync(int userId)
         {
             return await _context.NewsSources
+                                  .Include(ns => ns.NewsSourceTags)
+                                  .ThenInclude(st => st.Tag)
                                   .Where(ns => ns.UserId == userId)
                                   .ToListAsync();
         }
@@ -125,6 +127,16 @@ namespace Svodka.Infrastructure.Services
             {
                 source.LastErrorAtUtc = utcNow;
                 source.LastError = error;
+            }
+        }
+
+        public async Task ClearLastErrorAsync(int sourceId)
+        {
+            var source = await _context.NewsSources.FindAsync(sourceId);
+            if (source != null)
+            {
+                source.LastErrorAtUtc = null;
+                source.LastError = null;
             }
         }
 
@@ -196,7 +208,6 @@ namespace Svodka.Infrastructure.Services
             var links = unique.Select(tag => new NewsSourceTag
             {
                 NewsSourceId = newsSourceId,
-                TagId = tag.Id,
                 Tag = tag
             });
 

@@ -178,5 +178,21 @@ namespace Svodka.Web.Controllers
             var filterOptions = await _sourceService.GetFilterOptionsAsync(GetUserId());
             return Ok(filterOptions);
         }
+
+        [HttpPatch("{id:int}/active")]
+        public async Task<IActionResult> SetSourceActive(int id, [FromBody] SetSourceActiveDto request, CancellationToken cancellationToken)
+        {
+            var updated = await _sourceService.SetSourceActiveAsync(id, GetUserId(), request.IsActive, cancellationToken);
+            if (updated == null) return NotFound();
+            return Ok(updated);
+        }
+
+        [HttpPost("{id:int}/sync")]
+        public async Task<IActionResult> SyncSource(int id, CancellationToken cancellationToken)
+        {
+            var result = await _sourceService.SyncSourceAsync(id, GetUserId(), cancellationToken);
+            if (result == null) return NotFound();
+            return Ok(result);
+        }
     }
 }
