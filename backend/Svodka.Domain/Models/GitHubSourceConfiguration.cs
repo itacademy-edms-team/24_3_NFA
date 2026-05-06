@@ -1,40 +1,50 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Svodka.Domain.Interfaces;
 
 namespace Svodka.Domain.Models
 {
-    /// <summary>
-    /// Конфигурация GitHub-источника
-    /// </summary>
     public class GitHubSourceConfiguration : ISourceConfiguration
     {
-        /// <summary>
-        /// Владелец репозитория (username или organization)
-        /// </summary>
         public string RepositoryOwner { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Название репозитория
-        /// </summary>
         public string RepositoryName { get; set; } = string.Empty;
-
-        /// <summary>
-        /// GitHub Personal Access Token (опционально, для приватных репозиториев или увеличения лимита запросов)
-        /// </summary>
         public string? Token { get; set; }
-
-        /// <summary>
-        /// Типы событий для отслеживания (push, issues, pull_request и т.д.). Если пусто, отслеживаются все события
-        /// </summary>
         public List<string>? EventTypes { get; set; }
-
-        /// <summary>
-        /// Лимит событий для получения
-        /// </summary>
         public int Limit { get; set; } = 10;
-
-        /// <summary>
-        /// Категория источника (необязательное поле)
-        /// </summary>
         public string? Category { get; set; }
+
+        public static GitHubSourceConfiguration FromJson(JsonElement json) =>
+            SourceConfigurationJson.Deserialize<GitHubSourceConfiguration>(json);
+
+        public GitHubSourceConfiguration Normalize()
+        {
+            RepositoryOwner = RepositoryOwner?.Trim() ?? string.Empty;
+            RepositoryName = RepositoryName?.Trim() ?? string.Empty;
+            Token = string.IsNullOrWhiteSpace(Token) ? null : Token.Trim();
+            if (Limit <= 0) Limit = 10;
+            return this;
+        }
+
+        public void Validate()
+        {
+            if (string.IsNullOrWhiteSpace(RepositoryOwner))
+            {
+                throw new ArgumentException("Укажите владельца репозитория GitHub.");
+            }
+            if (string.IsNullOrWhiteSpace(RepositoryName))
+            {
+                throw new ArgumentException("Укажите название репозитория GitHub.");
+            }
+            SourceConfigurationJson.ValidateLimit(Limit);
+        }
+
+        public string ToJson() => SourceConfigurationJson.Serialize(this);
+
+        public static string ValidateAndNormalizeFromJson(JsonElement json)
+        {
+            var config = FromJson(json).Normalize();
+            config.Validate();
+            return config.ToJson();
+        }
     }
 }
