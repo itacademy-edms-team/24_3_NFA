@@ -21,6 +21,16 @@ namespace Svodka.Domain.Enums
         /// <summary>
         /// Reddit сабреддит
         /// </summary>
-        Reddit
+        Reddit,
+
+        /// <summary>
+        /// Блог Tumblr (RSS)
+        /// </summary>
+        Tumblr,
+
+        /// <summary>
+        /// Записи со стены VK (сообщество или пользователь)
+        /// </summary>
+        Vk
     }
 }
