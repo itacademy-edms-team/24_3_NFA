@@ -7,7 +7,7 @@ import MobileHeader from './MobileHeader';
 import { FaTimes } from 'react-icons/fa';
 import type { NewsItem } from '../../types/NewsItem';
 import { FaRss, FaGithub, FaReddit, FaHeart } from 'react-icons/fa';
-import SafeImage from '../SafeImage';
+import SafeImage from '../ui/SafeImage';
 
 const PostModal: React.FC<{ item: NewsItem; onClose: () => void }> = ({ item, onClose }) => {
   const favorites = useFavorites();

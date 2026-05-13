@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { updateSource } from '../../services/newsService';
+import { updateSource, type SourceConfiguration } from '../../services/newsService';
+import api from '../../services/api';
 import { FaTimes } from 'react-icons/fa';
 
 interface Source {
@@ -18,6 +19,9 @@ interface EditSourceModalProps {
 const EditSourceModal: React.FC<EditSourceModalProps> = ({ sourceId, onClose }) => {
   const [source, setSource] = useState<Source | null>(null);
   const [name, setName] = useState<string>('');
+  const [isActive, setIsActive] = useState<boolean>(true);
+  const [tumblrBlog, setTumblrBlog] = useState('');
+  const [tumblrLimit, setTumblrLimit] = useState(10);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,16 +30,20 @@ const EditSourceModal: React.FC<EditSourceModalProps> = ({ sourceId, onClose }) 
     const loadSource = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:5043/api/sources/${sourceId}`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const sourceData: Source = await response.json();
+        const response = await api.get<Source>(`/api/sources/${sourceId}`);
+        const sourceData = response.data;
         setSource(sourceData);
         setName(sourceData.name);
+        setIsActive(sourceData.isActive);
+
+        const config = sourceData.configuration ? JSON.parse(sourceData.configuration) : {};
+        const typeLower = (sourceData.type ?? '').toLowerCase();
+        if (typeLower === 'tumblr') {
+          setTumblrBlog(config.blogName ?? '');
+          setTumblrLimit(Number(config.limit ?? 10));
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Ошибка при загрузке');
-        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -52,15 +60,21 @@ const EditSourceModal: React.FC<EditSourceModalProps> = ({ sourceId, onClose }) 
     if (!source) return;
 
     try {
-      const configuration = JSON.parse(source.configuration);
-      const sourceData = {
-        name: name,
-        type: source.type,
-        configuration: configuration,
-        isActive: source.isActive,
-      };
+      const typeLower = source.type.toLowerCase();
+      let configuration: SourceConfiguration;
 
-      await updateSource(source.id, sourceData);
+      if (typeLower === 'tumblr') {
+        configuration = { blogName: tumblrBlog, limit: tumblrLimit };
+      } else {
+        configuration = JSON.parse(source.configuration);
+      }
+
+      await updateSource(source.id, {
+        name,
+        type: source.type,
+        configuration,
+        isActive,
+      });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка при сохранении');
@@ -68,6 +82,8 @@ const EditSourceModal: React.FC<EditSourceModalProps> = ({ sourceId, onClose }) 
       setSaving(false);
     }
   };
+
+  const typeLower = source?.type.toLowerCase() ?? '';
 
   if (loading) {
     return (
@@ -81,7 +97,7 @@ const EditSourceModal: React.FC<EditSourceModalProps> = ({ sourceId, onClose }) 
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={onClose}>
-      <div 
+      <div
         className="bg-white rounded-t-2xl w-full max-h-[80vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
@@ -94,15 +110,11 @@ const EditSourceModal: React.FC<EditSourceModalProps> = ({ sourceId, onClose }) 
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           {error && (
-            <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">
-              {error}
-            </div>
+            <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">{error}</div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Название *
-            </label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Название *</label>
             <input
               type="text"
               value={name}
@@ -112,10 +124,21 @@ const EditSourceModal: React.FC<EditSourceModalProps> = ({ sourceId, onClose }) 
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Тип
+          <div className="flex items-center gap-2">
+            <input
+              id="mobile-isActive"
+              type="checkbox"
+              checked={isActive}
+              onChange={(e) => setIsActive(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-indigo-600"
+            />
+            <label htmlFor="mobile-isActive" className="text-sm text-slate-700">
+              Источник активен
             </label>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Тип</label>
             <input
               type="text"
               value={source?.type || ''}
@@ -123,6 +146,33 @@ const EditSourceModal: React.FC<EditSourceModalProps> = ({ sourceId, onClose }) 
               className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-100 text-slate-500"
             />
           </div>
+
+          {typeLower === 'tumblr' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Имя блога *</label>
+                <input
+                  type="text"
+                  value={tumblrBlog}
+                  onChange={(e) => setTumblrBlog(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  placeholder="staff"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Лимит постов</label>
+                <input
+                  type="number"
+                  value={tumblrLimit}
+                  min={1}
+                  max={100}
+                  onChange={(e) => setTumblrLimit(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                />
+              </div>
+            </>
+          )}
 
           <div className="flex gap-3 pt-4">
             <button
