@@ -28,6 +28,16 @@ namespace Svodka.Domain.Entities
         /// </summary>
         public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
+        public bool EmailConfirmed { get; set; }
+
+        public string? EmailConfirmationToken { get; set; }
+
+        public DateTime? EmailConfirmationExpiresUtc { get; set; }
+
+        public string? PasswordResetToken { get; set; }
+
+        public DateTime? PasswordResetExpiresUtc { get; set; }
+
         /// <summary>
         /// Коллекция источников новостей, принадлежащих пользователю
         /// </summary>

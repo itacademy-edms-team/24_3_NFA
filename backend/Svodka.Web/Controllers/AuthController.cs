@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using Svodka.Application.DTOs;
 using Svodka.Application.Interfaces;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace Svodka.Web.Controllers
 {
@@ -23,8 +22,8 @@ namespace Svodka.Web.Controllers
         {
             try
             {
-                var token = await _authService.RegisterAsync(dto.Email, dto.Password);
-                return Ok(new { token });
+                var result = await _authService.RegisterAsync(dto.Email, dto.Password);
+                return Ok(result);
             }
             catch (Exception ex)
             {
@@ -35,12 +34,68 @@ namespace Svodka.Web.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
-            var token = await _authService.LoginAsync(dto.Email, dto.Password);
-            if (token == null)
+            try
             {
-                return Unauthorized(new { message = "Неверный email или пароль" });
+                var token = await _authService.LoginAsync(dto.Email, dto.Password);
+                if (token == null)
+                {
+                    return Unauthorized(new { message = "Неверный email или пароль" });
+                }
+                return Ok(new { token });
             }
-            return Ok(new { token });
+            catch (Exception ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
+        }
+
+        [HttpGet("confirm-email")]
+        public async Task<IActionResult> ConfirmEmail([FromQuery] string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return BadRequest(new { message = "Токен не указан" });
+            }
+
+            var ok = await _authService.ConfirmEmailAsync(token);
+            if (!ok)
+            {
+                return BadRequest(new { message = "Недействительная или устаревшая ссылка подтверждения" });
+            }
+
+            return Ok(new { message = "Email успешно подтверждён. Теперь можно войти." });
+        }
+
+        [HttpPost("resend-confirmation")]
+        public async Task<IActionResult> ResendConfirmation([FromBody] ResendConfirmationDto dto)
+        {
+            try
+            {
+                await _authService.ResendConfirmationAsync(dto.Email);
+                return Ok(new { message = "Если email зарегистрирован и не подтверждён, на него отправлена новая ссылка." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+        {
+            await _authService.ForgotPasswordAsync(dto.Email);
+            return Ok(new { message = "Если email зарегистрирован, на него отправлена ссылка для сброса пароля." });
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            var ok = await _authService.ResetPasswordAsync(dto.Token, dto.NewPassword);
+            if (!ok)
+            {
+                return BadRequest(new { message = "Недействительная или устаревшая ссылка сброса пароля" });
+            }
+            return Ok(new { message = "Пароль успешно изменён" });
         }
 
         [Authorize]
