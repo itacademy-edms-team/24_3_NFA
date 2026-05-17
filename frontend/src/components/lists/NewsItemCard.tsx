@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { type NewsItem } from '../types/NewsItem';
+import { type NewsItem } from '../../types/NewsItem';
 import { FaRss, FaGithub, FaReddit, FaHeart } from 'react-icons/fa';
-import SafeImage from './SafeImage';
-import { useFavorites } from '../contexts/FavoritesContext';
+import SafeImage from '../ui/SafeImage';
+import { useFavorites } from '../../contexts/FavoritesContext';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';

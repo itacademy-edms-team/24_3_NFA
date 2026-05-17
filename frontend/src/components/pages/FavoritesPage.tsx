@@ -1,8 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useFavorites } from '../contexts/FavoritesContext';
-import NewsItemCard from './NewsItemCard';
-import type { NewsItem } from '../types/NewsItem';
+import { useFavorites } from '../../contexts/FavoritesContext';
+import NewsItemCard from '../lists/NewsItemCard';
+import type { NewsItem } from '../../types/NewsItem';
 
 const FavoritesPage: React.FC = () => {
   const ctx = useFavorites();

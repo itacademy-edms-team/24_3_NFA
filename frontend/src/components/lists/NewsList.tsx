@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import NewsItemCard from './NewsItemCard';
-import type { NewsItem } from '../types/NewsItem';
-import { fetchLatestNews, type PeriodFilter, type FilterParams } from '../services/newsService';
+import type { NewsItem } from '../../types/NewsItem';
+import { fetchLatestNews, type PeriodFilter, type FilterParams } from '../../services/newsService';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
-import { NewsItemSkeleton } from './Skeleton';
+import { NewsItemSkeleton } from '../ui/Skeleton';
 
 interface NewsListProps {
   timeFilter: PeriodFilter;

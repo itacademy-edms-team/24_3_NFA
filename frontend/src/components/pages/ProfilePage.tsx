@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import SourcesList from './SourcesList';
+import { useAuth } from '../../contexts/AuthContext';
+import SourcesList from '../lists/SourcesList';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 import { FaChevronDown, FaChevronUp } from 'react-icons/fa';
 
 const ProfilePage: React.FC = () => {
@@ -13,15 +14,7 @@ const ProfilePage: React.FC = () => {
   const handlePasswordChange = async () => {
     const loadingToast = toast.loading('Смена пароля...');
     try {
-      const response = await fetch('http://localhost:5043/api/auth/change-password', {
-        method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ oldPassword, newPassword }),
-      });
-      if (!response.ok) throw new Error('Ошибка смены пароля');
+      await api.post('/api/auth/change-password', { oldPassword, newPassword });
       toast.success('Пароль успешно изменен', { id: loadingToast });
       setOldPassword('');
       setNewPassword('');

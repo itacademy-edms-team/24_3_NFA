@@ -8,8 +8,10 @@ import {
   FaBars,
   FaUser,
   FaEllipsisV,
+  FaTumblr,
+  FaVk,
 } from 'react-icons/fa';
-import { SOURCES_CHANGED_EVENT } from '../services/newsService';
+import { SOURCES_CHANGED_EVENT, fetchSources } from '../../services/newsService';
 
 interface SidebarItem {
   title: string;
@@ -51,23 +53,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [kebabMenuOpen, setKebabMenuOpen] = useState<number | null>(null);
   const [rssMenuOpen, setRssMenuOpen] = useState(false);
 
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('token');
-    return {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-    };
-  };
-
   const loadRssSources = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:5043/api/sources', {
-        headers: getAuthHeaders()
-      });
-      if (response.ok) {
-        const sources: Source[] = await response.json();
-        setRssSources(sources.filter(s => s.type.toLowerCase() === 'rss'));
-      }
+      const sources = await fetchSources();
+      setRssSources(sources.filter((s) => s.type.toLowerCase() === 'rss'));
     } catch (error) {
       console.error('Error loading RSS sources:', error);
     }
@@ -92,7 +81,14 @@ const Sidebar: React.FC<SidebarProps> = ({
       navigate('/favorites');
       return;
     }
-    if (item.type && (item.type === 'rss' || item.type === 'github' || item.type === 'reddit')) {
+    if (
+      item.type &&
+      (item.type === 'rss' ||
+        item.type === 'github' ||
+        item.type === 'reddit' ||
+        item.type === 'tumblr' ||
+        item.type === 'vk')
+    ) {
       onSourceTypeChange?.(item.type);
       navigate('/');
     } else {
@@ -144,9 +140,11 @@ const Sidebar: React.FC<SidebarProps> = ({
     {
       name: 'Источники',
       items: [
-        { title: 'GitHub источники', icon: FaGithub, type: 'github' },
-        { title: 'Reddit Источники', icon: FaReddit, type: 'reddit' },
-        { title: 'RSS каналы', icon: FaRss, type: 'rss' },
+        { title: 'GitHub', icon: FaGithub, type: 'github' },
+        { title: 'Reddit', icon: FaReddit, type: 'reddit' },
+        { title: 'Tumblr', icon: FaTumblr, type: 'tumblr' },
+        { title: 'VK', icon: FaVk, type: 'vk' },
+        { title: 'RSS', icon: FaRss, type: 'rss' }
       ],
     },
     {
@@ -175,10 +173,12 @@ const Sidebar: React.FC<SidebarProps> = ({
         )}
         {!collapsed && (
           <button
+            type="button"
             onClick={onLogoClick}
-            className="text-xl font-black tracking-tight hover:text-indigo-600 transition-colors cursor-pointer"
+            className="flex items-center hover:opacity-80 transition-opacity cursor-pointer"
+            aria-label="На главную"
           >
-            Svodka
+            <img src="/logo.png" alt="Сводка" className="h-8 w-auto object-contain" />
           </button>
         )}
       </div>

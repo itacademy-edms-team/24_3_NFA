@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaBars, FaSearch, FaFilter, FaChevronDown, FaPlus } from 'react-icons/fa';
-import { fetchFilterOptions, SOURCES_CHANGED_EVENT } from '../services/newsService';
+import { fetchFilterOptions, SOURCES_CHANGED_EVENT } from '../../services/newsService';
 import { createPortal } from 'react-dom';
 
 export type TopBarPeriod = 'day' | 'week' | 'month' | '';

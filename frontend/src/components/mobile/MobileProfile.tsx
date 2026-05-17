@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaRss, FaGithub, FaReddit, FaChevronRight, FaPen, FaClock } from 'react-icons/fa';
 import MobileHeader from './MobileHeader';
+import { useAuth } from '../../contexts/AuthContext';
+import { fetchSources } from '../../services/newsService';
 
 interface Source {
   id: number;
@@ -21,11 +23,12 @@ const MobileProfile: React.FC = () => {
   const navigate = useNavigate();
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user: authUser } = useAuth();
   const [user] = useState<UserProfile>({
-    nickname: 'Nickname',
-    fio: 'FIO',
-    birthday: 'Birthday date',
-    status: 'Status',
+    nickname: authUser?.email?.split('@')[0] ?? 'Пользователь',
+    fio: authUser?.email ?? '',
+    birthday: '',
+    status: 'Активен',
   });
 
   useEffect(() => {
@@ -34,11 +37,8 @@ const MobileProfile: React.FC = () => {
 
   const loadSources = async () => {
     try {
-      const response = await fetch('http://localhost:5043/api/sources');
-      if (response.ok) {
-        const data: Source[] = await response.json();
-        setSources(data);
-      }
+      const data = await fetchSources();
+      setSources(data);
     } catch (error) {
       console.error('Error loading sources:', error);
     } finally {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom'; 
-import { fetchFilterOptions } from '../services/newsService';
+import { fetchFilterOptions } from '../../services/newsService';
 
 interface FilterPanelProps {
   onFilterChange: (filters: {
