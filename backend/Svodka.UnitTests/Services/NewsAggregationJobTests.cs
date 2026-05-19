@@ -19,7 +19,7 @@ namespace Svodka.UnitTests.Services
         private readonly Mock<ILogger<NewsAggregationJob>> _mockLogger;
         private readonly Mock<IServiceScope> _mockScope;
         private readonly IServiceProvider _mockServiceProvider;
-        private readonly Mock<INewsProviderFactory> _mockProviderFactory;
+        private readonly Mock<INewsSourceFetcherFactory> _mockFetcherFactory;
         private readonly Mock<INewsSourceRepository> _mockSourceRepository;
         private readonly Mock<INewsItemRepository> _mockItemRepository;
         private readonly NewsAggregatorDbContext _dbContext;
@@ -30,7 +30,7 @@ namespace Svodka.UnitTests.Services
             _mockScopeFactory = new Mock<IServiceScopeFactory>();
             _mockLogger = new Mock<ILogger<NewsAggregationJob>>();
             _mockScope = new Mock<IServiceScope>();
-            _mockProviderFactory = new Mock<INewsProviderFactory>();
+            _mockFetcherFactory = new Mock<INewsSourceFetcherFactory>();
             _mockSourceRepository = new Mock<INewsSourceRepository>();
             _mockItemRepository = new Mock<INewsItemRepository>();
 
@@ -49,8 +49,8 @@ namespace Svodka.UnitTests.Services
             // Создаем мок IServiceProvider с реализацией метода GetService
             var mockServiceProvider = new Mock<IServiceProvider>();
             mockServiceProvider
-                .Setup(sp => sp.GetService(typeof(INewsProviderFactory)))
-                .Returns(_mockProviderFactory.Object);
+                .Setup(sp => sp.GetService(typeof(INewsSourceFetcherFactory)))
+                .Returns(_mockFetcherFactory.Object);
             mockServiceProvider
                 .Setup(sp => sp.GetService(typeof(INewsSourceRepository)))
                 .Returns(_mockSourceRepository.Object);
@@ -82,12 +82,19 @@ namespace Svodka.UnitTests.Services
                 IsActive = true
             };
 
-            var config = new RssSourceConfiguration { Url = "http://example.com", Limit = 10 };
+            var fetcher = new Mock<INewsSourceFetcher>();
+            fetcher
+                .Setup(f => f.FetchAsync(source, _options.NewsLimitPerSource, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new List<NewsItem>
+                {
+                    new NewsItem { Title = "Test News", SourceItemId = "1" }
+                });
 
             _mockSourceRepository.Setup(r => r.GetByIdAsync(sourceId)).ReturnsAsync(source);
-            _mockProviderFactory.Setup(f => f.GetProvider(source.Type)).Returns(Mock.Of<INewsProvider>());
+            _mockFetcherFactory.Setup(f => f.GetFetcher(source.Type)).Returns(fetcher.Object);
             _mockItemRepository.Setup(r => r.SaveNewsAsync(It.IsAny<IEnumerable<NewsItem>>())).Returns(Task.CompletedTask);
             _mockSourceRepository.Setup(r => r.UpdateLastPolledAtAsync(sourceId, It.IsAny<DateTime>())).Returns(Task.CompletedTask);
+            _mockSourceRepository.Setup(r => r.ClearLastErrorAsync(sourceId)).Returns(Task.CompletedTask);
 
             var job = new NewsAggregationJob(
                 _mockScopeFactory.Object,
@@ -96,10 +103,14 @@ namespace Svodka.UnitTests.Services
             );
 
             // Act
-            await job.ExecuteAsync(sourceId, CancellationToken.None);
+            await job.ExecuteAsync(sourceId, cancellationToken: CancellationToken.None);
 
             // Assert
             _mockSourceRepository.Verify(r => r.GetByIdAsync(sourceId), Times.Once);
+            _mockFetcherFactory.Verify(f => f.GetFetcher(source.Type), Times.Once);
+            fetcher.Verify(f => f.FetchAsync(source, _options.NewsLimitPerSource, It.IsAny<CancellationToken>()), Times.Once);
+            _mockItemRepository.Verify(r => r.SaveNewsAsync(It.Is<IEnumerable<NewsItem>>(items =>
+                items.Single().SourceId == sourceId)), Times.Once);
         }
 
         [Fact]
@@ -113,9 +124,22 @@ namespace Svodka.UnitTests.Services
             };
 
             _mockSourceRepository.Setup(r => r.GetActiveNewsSourcesAsync()).ReturnsAsync(sources);
-            _mockProviderFactory.Setup(f => f.GetProvider(It.IsAny<SourceType>())).Returns(Mock.Of<INewsProvider>());
+            _mockFetcherFactory
+                .Setup(f => f.GetFetcher(It.IsAny<SourceType>()))
+                .Returns((SourceType _) =>
+                {
+                    var fetcher = new Mock<INewsSourceFetcher>();
+                    fetcher
+                        .Setup(f => f.FetchAsync(It.IsAny<NewsSource>(), _options.NewsLimitPerSource, It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(new List<NewsItem>
+                        {
+                            new NewsItem { Title = "Test News", SourceItemId = Guid.NewGuid().ToString() }
+                        });
+                    return fetcher.Object;
+                });
             _mockItemRepository.Setup(r => r.SaveNewsAsync(It.IsAny<IEnumerable<NewsItem>>())).Returns(Task.CompletedTask);
             _mockSourceRepository.Setup(r => r.UpdateLastPolledAtAsync(It.IsAny<int>(), It.IsAny<DateTime>())).Returns(Task.CompletedTask);
+            _mockSourceRepository.Setup(r => r.ClearLastErrorAsync(It.IsAny<int>())).Returns(Task.CompletedTask);
 
             var job = new NewsAggregationJob(
                 _mockScopeFactory.Object,
@@ -124,10 +148,12 @@ namespace Svodka.UnitTests.Services
             );
 
             // Act
-            await job.ExecuteAsync(null, CancellationToken.None);
+            await job.ExecuteAsync(cancellationToken: CancellationToken.None);
 
             // Assert
             _mockSourceRepository.Verify(r => r.GetActiveNewsSourcesAsync(), Times.Once);
+            _mockFetcherFactory.Verify(f => f.GetFetcher(SourceType.Rss), Times.Exactly(2));
+            _mockItemRepository.Verify(r => r.SaveNewsAsync(It.IsAny<IEnumerable<NewsItem>>()), Times.Exactly(2));
         }
     }
 }

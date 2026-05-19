@@ -95,6 +95,47 @@ namespace Svodka.UnitTests.Infrastructure
             Assert.Equal(1, resultList[0].SourceId);
         }
 
+        [Fact]
+        public async Task GetLatestNewsAsync_TagFromSourceConfigurationCategory_ShouldReturnItemsFromThatSource()
+        {
+            // Arrange
+            var source = new NewsSource
+            {
+                Id = 1,
+                Name = "Source with Category",
+                UserId = 1,
+                Configuration = """{"category":"Technology"}"""
+            };
+            var otherSource = new NewsSource
+            {
+                Id = 2,
+                Name = "Source without Category",
+                UserId = 1,
+                Configuration = """{"category":"World"}"""
+            };
+            await _context.NewsSources.AddRangeAsync(source, otherSource);
+
+            var newsItems = new List<NewsItem>
+            {
+                new NewsItem { Id = 1, Title = "Tech News", SourceId = 1, PublishedAtUtc = DateTime.UtcNow },
+                new NewsItem { Id = 2, Title = "World News", SourceId = 2, PublishedAtUtc = DateTime.UtcNow.AddMinutes(-1) }
+            };
+
+            await _context.NewsItems.AddRangeAsync(newsItems);
+            await _context.SaveChangesAsync();
+
+            // Act
+            var result = await _repository.GetLatestNewsAsync(
+                limit: 10,
+                tags: new List<string> { "Technology" }
+            );
+
+            // Assert
+            var resultList = result.ToList();
+            Assert.Single(resultList);
+            Assert.Equal(1, resultList[0].SourceId);
+        }
+
         public void Dispose()
         {
             _context?.Dispose();

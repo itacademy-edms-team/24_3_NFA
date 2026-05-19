@@ -26,10 +26,21 @@ namespace Svodka.UnitTests.Infrastructure
         public async Task GetLatestNewsAsync_WithValidParams_ReturnsNewsItems()
         {
             // Arrange
+            var source = new NewsSource
+            {
+                Id = 1,
+                Name = "Test",
+                Type = SourceType.Rss,
+                Configuration = "{}",
+                IsActive = true,
+                UserId = 1
+            };
+            await _context.NewsSources.AddAsync(source);
+
             var newsItems = new List<NewsItem>
             {
-                new NewsItem { Id = 1, Title = "Test News 1", PublishedAtUtc = DateTime.UtcNow.AddDays(-1) },
-                new NewsItem { Id = 2, Title = "Test News 2", PublishedAtUtc = DateTime.UtcNow }
+                new NewsItem { Id = 1, Title = "Test News 1", Description = "", PublishedAtUtc = DateTime.UtcNow.AddDays(-1), SourceId = 1, SourceItemId = "a" },
+                new NewsItem { Id = 2, Title = "Test News 2", Description = "", PublishedAtUtc = DateTime.UtcNow, SourceId = 1, SourceItemId = "b" }
             };
 
             await _context.NewsItems.AddRangeAsync(newsItems);
