@@ -17,4 +17,27 @@ namespace Svodka.Application.DTOs
         public string OldPassword { get; set; } = string.Empty;
         public string NewPassword { get; set; } = string.Empty;
     }
+
+    public class ForgotPasswordDto
+    {
+        public string Email { get; set; } = string.Empty;
+    }
+
+    public class ResendConfirmationDto
+    {
+        public string Email { get; set; } = string.Empty;
+    }
+
+    public class ResetPasswordDto
+    {
+        public string Token { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+    }
+
+    public class RegisterResultDto
+    {
+        public string? Token { get; set; }
+        public bool RequiresEmailConfirmation { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
 }

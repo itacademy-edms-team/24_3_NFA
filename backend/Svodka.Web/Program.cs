@@ -5,14 +5,13 @@ using System.Text.Json.Serialization;
 using Svodka.Domain.Interfaces;
 using Svodka.Infrastructure.Services;
 using Svodka.Infrastructure.Data;
-using Svodka.Infrastructure.Providers;
+using Svodka.Infrastructure.Fetchers;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Svodka.Application.Interfaces;
 using Svodka.Application.Services;
-using Svodka.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,34 +52,45 @@ builder.Services.AddDbContext<NewsAggregatorDbContext>(options =>
     options.UseSqlServer(connectionString));
 
 // HttpClient для RSS
-builder.Services.AddHttpClient<IRssService, RssService>(client =>
+builder.Services.AddHttpClient<INewsSourceFetcher, RssNewsSourceFetcher>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 
 // HttpClient для GitHub
-builder.Services.AddHttpClient<IGitHubService, GitHubService>(client =>
+builder.Services.AddHttpClient<INewsSourceFetcher, GitHubNewsSourceFetcher>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);
     client.BaseAddress = new Uri("https://api.github.com");
 });
 
 // HttpClient для Reddit
-builder.Services.AddHttpClient<IRedditService, RedditService>(client =>
+builder.Services.AddHttpClient<INewsSourceFetcher, RedditNewsSourceFetcher>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);
     client.BaseAddress = new Uri("https://www.reddit.com");
+});
+
+builder.Services.AddHttpClient<INewsSourceFetcher, TumblrNewsSourceFetcher>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+
+builder.Services.AddHttpClient<INewsSourceFetcher, VkNewsSourceFetcher>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
 });
 
 // Репозитории и сервисы
 builder.Services.AddScoped<INewsItemRepository, NewsItemRepository>();
 builder.Services.AddScoped<INewsSourceRepository, NewsSourceRepository>();
 builder.Services.AddScoped<Svodka.Application.Interfaces.ISourceService, Svodka.Application.Services.SourceService>();
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection(SmtpSettings.SectionName));
+builder.Services.Configure<TumblrSettings>(builder.Configuration.GetSection(TumblrSettings.SectionName));
+builder.Services.Configure<VkSettings>(builder.Configuration.GetSection(VkSettings.SectionName));
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<INewsProvider, RssNewsProvider>();
-builder.Services.AddScoped<INewsProvider, GitHubNewsProvider>();
-builder.Services.AddScoped<INewsProvider, RedditNewsProvider>();
-builder.Services.AddTransient<INewsProviderFactory, NewsProviderFactory>();
+builder.Services.AddTransient<INewsSourceFetcherFactory, NewsSourceFetcherFactory>();
 builder.Services.AddSingleton<INewsAggregationJob, NewsAggregationJob>();
 builder.Services.AddHostedService<NewsAggregationBackgroundService>();
 
@@ -97,7 +107,8 @@ builder.Services.AddCors(options =>
                 "http://localhost:3000",
                 "http://localhost:3001",
                 "http://localhost:8080",
-                "http://localhost:8000")
+                "http://localhost:8000",
+                "https://svodka.cloudpub.ru")
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
@@ -111,7 +122,8 @@ builder.Services.AddCors(options =>
                 "http://localhost:3000",
                 "http://localhost:3001",
                 "http://localhost:8080",
-                "http://localhost:8000")
+                "http://localhost:8000",
+                "https://svodka.cloudpub.ru")
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
@@ -149,6 +161,19 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapGet("/health", async (NewsAggregatorDbContext db) =>
+{
+    try
+    {
+        await db.Database.CanConnectAsync();
+        return Results.Ok(new { status = "healthy" });
+    }
+    catch
+    {
+        return Results.StatusCode(503);
+    }
+});
 
 app.Run();
 
